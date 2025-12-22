@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>法老密碼 v3.2.0 - 解密道具版</title>
+    <title>法老密碼 v3.2.2 - 四道具版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -153,7 +153,7 @@
 <body class="min-h-screen pb-12 text-slate-800">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="text-center mb-6 relative">
-            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.2.0</h1>
+            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.2.2</h1>
             <p class="text-lg text-amber-700 font-medium">連線版 - 古埃及數學試煉</p>
             <div id="connection-status" class="absolute top-0 right-0 text-xs font-mono text-gray-400">連線中...</div>
         </div>
@@ -305,6 +305,10 @@
                                 <button onclick="app.backspace()" class="absolute right-2 top-2 bottom-2 px-3 text-red-500 hover:bg-red-50 rounded cursor-control-btn font-bold">⌫</button>
                             </div>
                         </div>
+                            <div id="horus-input-area" class="hidden grid grid-cols-3 gap-2 mb-2 mt-2 animate-[fadeIn_0.3s_ease-out]"></div>
+                        </div>
+
+                        <div id="active-item-status" class="hidden mb-2 p-3 rounded-lg border-2 border-amber-400 bg-amber-50 text-center animate-[popIn_0.3s_ease-out] cursor-pointer hover:bg-red-50 transition-colors" onclick="app.useItem(app.state.activeItem)" title="點擊可關閉道具"></div>
 
                         <div class="grid grid-cols-4 gap-2 flex-grow">
                             <button onclick="app.inputChar('+')" class="cursor-control-btn bg-indigo-100 text-indigo-900 rounded-lg font-bold text-2xl shadow border-b-4 border-indigo-200">+</button>
@@ -616,10 +620,16 @@
                 }
 
                 // [v3.0.8] 偵測回合切換,清空輸入
+                // [v3.0.8] 偵測回合切換
                 if (data.round && data.round > app.state.lastRoundProcessed) {
                     app.state.lastRoundProcessed = data.round;
                     if (app.state.role === 'student') {
                         app.resetInput();
+                        // v3.3.1: 新回合強制清除所有道具效果 (包含尼羅河)
+                        app.state.activeItem = null;
+                        // 重新渲染道具列以移除狀態框
+                        app.renderStudentInventory(data.players); 
+                        app.toast('🔔 新回合開始，道具效果已重置');
                     }
                 }
 
@@ -819,7 +829,7 @@
             app.el('end-player-ranks').innerHTML = playerHtml;
         },
 
-       showTeamModal: (teamKey) => {
+    showTeamModal: (teamKey) => {
             if (!app.state.latestTeamStats) return;
             const team = app.state.latestTeamStats[teamKey];
             if (!team) return;
@@ -830,18 +840,23 @@
             // 排序組員分數
             team.members.sort((a, b) => b.score - a.score);
             
-            // v3.2.0 修改：加入道具發放面板 (僅老師可見)
-            let html = '<div class="mb-4 grid grid-cols-2 gap-2 bg-amber-50 p-3 rounded-xl border border-amber-200">';
-            html += `<button onclick="app.grantItem('${teamKey}', 'hint')" class="grant-btn"><span class="text-2xl mb-1">📜</span><span class="text-xs font-bold text-amber-900">發送提示卡</span></button>`;
-            html += `<button onclick="app.grantItem('${teamKey}', 'double')" class="grant-btn"><span class="text-2xl mb-1">🪲</span><span class="text-xs font-bold text-amber-900">發送聖甲蟲</span></button>`;
-            html += '</div><div class="text-xs text-gray-500 mb-2 font-bold">組員列表：</div>';
+            // v3.3.0 修改：擴充道具發放面板 (四種道具)
+            // 為了避免空白節點，HTML 字串採緊湊寫法
+            let html = '<div class="mb-4 bg-amber-50 p-3 rounded-xl border border-amber-200"><div class="grid grid-cols-2 gap-2 mb-2">';
+            html += `<button onclick="app.grantItem('${teamKey}', 'hint')" class="grant-btn"><span class="text-2xl mb-1">📜</span><span class="text-xs font-bold text-amber-900">提示卡</span></button>`;
+            html += `<button onclick="app.grantItem('${teamKey}', 'double')" class="grant-btn"><span class="text-2xl mb-1">🦂</span><span class="text-xs font-bold text-amber-900">聖甲蟲</span></button>`;
+            html += '</div><div class="grid grid-cols-2 gap-2">';
+            html += `<button onclick="app.grantItem('${teamKey}', 'horus')" class="grant-btn"><span class="text-2xl mb-1">👁️</span><span class="text-xs font-bold text-amber-900">荷魯斯之眼</span></button>`;
+            html += `<button onclick="app.grantItem('${teamKey}', 'nile')" class="grant-btn"><span class="text-2xl mb-1">🌊</span><span class="text-xs font-bold text-amber-900">尼羅河恩賜</span></button>`;
+            html += '</div></div><div class="text-xs text-gray-500 mb-2 font-bold">組員列表：</div>';
 
             team.members.forEach(m => {
-                // 顯示該組員是否持有道具
                 let itemsBadge = '';
                 if (m.items) {
                     if (m.items.hint) itemsBadge += '📜';
-                    if (m.items.double) itemsBadge += '🪲';
+                    if (m.items.double) itemsBadge += '🦂';
+                    if (m.items.horus) itemsBadge += '👁️';
+                    if (m.items.nile) itemsBadge += '🌊';
                 }
                 html += `<div class="team-detail-row items-center"><span class="font-bold text-gray-700">${m.name} <span class="text-xs">${itemsBadge}</span></span><span class="font-bold text-amber-600">${m.score}分</span></div>`;
             });
@@ -853,23 +868,28 @@
         },
 
         // v3.2.0 新增：發放道具邏輯
+      // v3.3.1 修正：發放道具邏輯 (擴充顯示名稱)
         grantItem: (teamKey, type) => {
              const team = app.state.latestTeamStats[teamKey];
              if (!team || team.members.length === 0) return app.toast('❌ 該組沒有成員');
 
-             // 隨機選一位幸運兒 (或是發給分數最低的，這裡採隨機以增加趣味)
              const luckyMember = team.members[Math.floor(Math.random() * team.members.length)];
              
-             // 寫入資料庫
              const itemRef = db.ref(`classes/${app.state.classId}/players/${teamKey}/${luckyMember.name}/items/${type}`);
-             // 使用 transaction 增加數量
              itemRef.transaction((currentCount) => {
                  return (currentCount || 0) + 1;
              }, (error, committed) => {
                  if (committed) {
-                     const itemName = type === 'hint' ? '📜 古老提示卡' : '🪲 聖甲蟲祝福';
+                     // 修正顯示名稱錯誤的 Bug
+                     const itemNames = {
+                         hint: '📜 古老提示卡',
+                         double: '🦂 聖甲蟲祝福',
+                         horus: '👁️ 荷魯斯之眼',
+                         nile: '🌊 尼羅河恩賜'
+                     };
+                     const itemName = itemNames[type] || '🎁 神秘道具';
                      app.toast(`🎁 已賜予 ${luckyMember.name}：${itemName}`);
-                     app.el('team-modal').classList.add('hidden'); // 關閉視窗
+                     app.el('team-modal').classList.add('hidden'); 
                  }
              });
         },
@@ -1015,7 +1035,7 @@
             });
 
             // 建立簡易 HTML 報表
-            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>法老密碼戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.2.0 系統自動生成</p></body></html>`;
+            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>法老密碼戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.2.2 系統自動生成</p></body></html>`;
 
             const blob = new Blob([reportHTML], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
@@ -1185,7 +1205,9 @@
             app.renderFormulaInput();
         },
 
-       submitAnswer: () => {
+     // v3.3.0 更新：驗證邏輯 (支援荷魯斯之眼與尼羅河恩賜)
+       // v3.3.1 更新：驗證邏輯 (修正尼羅河持續效果與荷魯斯消耗)
+        submitAnswer: () => {
             const idx = app.state.selectedCardIndex;
             if (idx === null) return app.toast('⚠️ 請先點擊金字塔上的數字！');
             
@@ -1193,13 +1215,62 @@
             if (!card || card.isTaken) return app.toast('🚫 晚了一步！這張牌已經被拿走了。');
             
             const formula = app.state.inputFormula;
-            const diceNums = [app.state.dice.d8, app.state.dice.d10, app.state.dice.d12].sort((a,b)=>a-b);
+            const dice = app.state.dice;
+            const diceNums = [dice.d8, dice.d10, dice.d12].sort((a,b)=>a-b);
             const formulaNums = (formula.match(/\d+/g) || []).map(Number).sort((a,b)=>a-b);
             
-            if (JSON.stringify(diceNums) !== JSON.stringify(formulaNums)) {
-                return app.toast('❌ 數字使用錯誤！必須用完三顆骰子。');
+            const activeItem = app.state.activeItem;
+
+            // --- 步驟 1: 驗證數字使用規則 ---
+            let isUsageValid = false;
+
+            if (activeItem === 'nile') {
+                // 🌊 尼羅河恩賜
+                if (formulaNums.length === 2) {
+                    const tempDice = [...diceNums];
+                    let matchCount = 0;
+                    formulaNums.forEach(num => {
+                        const foundIdx = tempDice.indexOf(num);
+                        if (foundIdx !== -1) {
+                            tempDice.splice(foundIdx, 1);
+                            matchCount++;
+                        }
+                    });
+                    if (matchCount === 2) isUsageValid = true;
+                }
+                if (!isUsageValid) return app.toast('❌ 尼羅河規則：請輸入只包含「2顆」骰子數字的公式。');
+
+            } else if (activeItem === 'horus') {
+                // 👁️ 荷魯斯之眼
+                if (formulaNums.length === 3) {
+                    const tempDice = [...diceNums];
+                    let matchCount = 0;
+                    let wildcardUsed = false;
+
+                    formulaNums.forEach(num => {
+                        const foundIdx = tempDice.indexOf(num);
+                        if (foundIdx !== -1) {
+                            tempDice.splice(foundIdx, 1);
+                            matchCount++;
+                        } else {
+                            if (!wildcardUsed && (num >= 1 && num <= 3)) {
+                                wildcardUsed = true;
+                            }
+                        }
+                    });
+                    if ((matchCount >= 2 && wildcardUsed) || matchCount === 3) isUsageValid = true;
+                }
+                if (!isUsageValid) return app.toast('❌ 荷魯斯規則：需用 2 顆原骰子 + 1 顆變身數字(1~3)。');
+
+            } else {
+                // 🟢 預設規則
+                if (JSON.stringify(diceNums) === JSON.stringify(formulaNums)) {
+                    isUsageValid = true;
+                }
+                if (!isUsageValid) return app.toast('❌ 數字錯誤！請用完所有骰子。');
             }
 
+            // --- 步驟 2: 驗證運算結果 ---
             try {
                 const cleanFormula = formula.replace(/[^-()\d/*+.]/g, '');
                 if (/[^0-9+\-*/(). ]/.test(cleanFormula)) throw new Error('Invalid characters');
@@ -1208,25 +1279,36 @@
                 
                 if (Math.abs(result - card.number) < 0.001) {
                     // --- 驗證成功 ---
+                    let points = card.points;
+                    let successMsg = "破解成功！";
+                    let itemToConsume = null;
+
+                    if (activeItem === 'double') {
+                        points *= 2;
+                        successMsg = "🦂 聖甲蟲發威！分數雙倍！";
+                        itemToConsume = 'double';
+                        app.state.activeItem = null; // 聖甲蟲用完即停
+                    } else if (activeItem === 'horus') {
+                        successMsg = "👁️ 荷魯斯之力！破解成功！";
+                        itemToConsume = 'horus';
+                        app.state.activeItem = null; // 荷魯斯用完即停
+                    } else if (activeItem === 'nile') {
+                        successMsg = "🌊 尼羅河的恩賜！運算成功！";
+                        itemToConsume = 'nile';
+                        // 注意：尼羅河不設定為 null，讓它在本回合持續有效
+                    }
+
+                    if (itemToConsume) {
+                        const itemRef = db.ref(`classes/${app.state.classId}/players/${app.state.myTeam}/${app.state.myName}/items/${itemToConsume}`);
+                        itemRef.transaction(count => Math.max(0, (count || 0) - 1));
+                    }
+
+                    // 重新渲染 UI 以更新道具顯示 (因為有些被設為 null 了)
+                    app.renderStudentInventory(app.state.gameData.players);
+
                     const updates = {};
                     updates[`pyramid/${idx}/isTaken`] = true;
                     
-                    // 計算分數 (檢查是否有聖甲蟲加持)
-                    let points = card.points;
-                    let successMsg = "破解成功！";
-
-                    if (app.state.activeItem === 'double') {
-                        points *= 2;
-                        successMsg = "🪲 聖甲蟲發威！分數雙倍！";
-                        
-                        // 扣除道具
-                        const itemRef = db.ref(`classes/${app.state.classId}/players/${app.state.myTeam}/${app.state.myName}/items/double`);
-                        itemRef.transaction(count => Math.max(0, (count || 0) - 1));
-                        
-                        // 關閉狀態
-                        app.state.activeItem = null;
-                    }
-
                     const scorePath = `players/${app.state.myTeam}/${app.state.myName}/score`;
                     const currentScore = (app.state.gameData.players?.[app.state.myTeam]?.[app.state.myName]?.score || 0);
                     updates[scorePath] = currentScore + points;
@@ -1237,24 +1319,6 @@
                         app.speak(successMsg + " 啟動撤退時間！");
                     } else {
                         app.speak(successMsg + " 再拿一張！");
-                    }
-                    
-                    // 檢查剩餘解 (防死局)
-                    const tempPyramid = [...app.state.gameData.pyramid];
-                    tempPyramid[idx] = {...card, isTaken: true};
-                    const remainingTargets = tempPyramid.filter(c => c && !c.isTaken).map(c => c.number);
-                    const currentDice = [app.state.dice.d8, app.state.dice.d10, app.state.dice.d12];
-                    
-                    let hasRemainingSolution = false;
-                    for (let target of remainingTargets) {
-                        if (app.findSolution(currentDice, target)) { hasRemainingSolution = true; break; }
-                    }
-
-                    if (!hasRemainingSolution && remainingTargets.length > 0) {
-                         setTimeout(() => {
-                             app.toast("⚠️ 警告：場上已無可解數字！");
-                             app.forceNextRound();
-                        }, 2000);
                     }
 
                     db.ref(`classes/${app.state.classId}`).update(updates);
@@ -1374,7 +1438,8 @@
             });
             return decks;
         },
-// v3.2.0 新增：渲染學生背包 (嚴格去除空白)
+
+        // v3.3.1 更新：渲染學生背包 (支援四種道具，消除空白節點)
         renderStudentInventory: (players) => {
             if (!app.state.myTeam || !app.state.myName || !players) return;
             const myData = players[app.state.myTeam]?.[app.state.myName];
@@ -1382,8 +1447,7 @@
             const invEl = app.el('student-inventory');
             const listEl = app.el('inventory-list');
             
-            // 檢查是否有任何道具
-            const hasItems = (items.hint > 0) || (items.double > 0);
+            const hasItems = (items.hint > 0) || (items.double > 0) || (items.horus > 0) || (items.nile > 0);
             if (!hasItems) {
                 invEl.classList.add('hidden');
                 return;
@@ -1391,56 +1455,99 @@
             invEl.classList.remove('hidden');
 
             let html = '';
-            // 渲染提示卡
+            // 1. 提示卡
             if (items.hint > 0) {
-                html += `<div onclick="app.useItem('hint')" class="item-slot group relative" title="點擊使用提示卡"><div class="item-icon">📜</div><div class="item-count">${items.hint}</div></div>`;
+                html += `<div onclick="app.useItem('hint')" class="item-slot" title="提示卡"><div class="item-icon">📜</div><div class="item-count">${items.hint}</div></div>`;
             }
-            // 渲染雙倍卡 (點擊切換啟動狀態)
-            if (items.double > 0) {
-                const isActive = app.state.activeItem === 'double';
-                const activeClass = isActive ? 'item-active' : 'opacity-80 hover:opacity-100';
-                html += `<div onclick="app.useItem('double')" class="item-slot ${activeClass}" title="點擊啟動雙倍分數"><div class="item-icon">🪲</div><div class="item-count">${items.double}</div></div>`;
-            }
+            
+            // 2. 狀態切換型道具
+            const renderToggleItem = (type, icon, title) => {
+                if (items[type] > 0) {
+                    const isActive = app.state.activeItem === type;
+                    const activeClass = isActive ? 'item-active' : 'opacity-80 hover:opacity-100';
+                    return `<div onclick="app.useItem('${type}')" class="item-slot ${activeClass}" title="${title}"><div class="item-icon">${icon}</div><div class="item-count">${items[type]}</div></div>`;
+                }
+                return '';
+            };
+
+            html += renderToggleItem('double', '🦂', '聖甲蟲：下題分數加倍');
+            html += renderToggleItem('horus', '👁️', '荷魯斯之眼：將一顆骰子視為 1~3');
+            html += renderToggleItem('nile', '🌊', '尼羅河恩賜：只需兩顆骰子');
+
             listEl.innerHTML = html;
+            
+            // 同步更新介面狀態
+            app.renderActiveItemStatus();
+            app.renderHorusButtons(); 
         },
 
-        // v3.2.0 新增：使用道具
+        // v3.3.1 更新：使用道具 (支援互斥切換與 UI 更新)
         useItem: (type) => {
             if (app.state.gameData.status !== 'playing') return app.toast('✋ 遊戲尚未開始');
 
+            // 類型 A: 立即消耗型
             if (type === 'hint') {
                 if (!confirm('📜 確定要消耗一張「提示卡」來獲得運算提示嗎？')) return;
-                
                 const { d8, d10, d12 } = app.state.gameData.dice;
                 const solution = app.findSolution([d8, d10, d12]);
-                
                 if (solution) {
-                    // 扣除道具
                     const ref = db.ref(`classes/${app.state.classId}/players/${app.state.myTeam}/${app.state.myName}/items/hint`);
                     ref.transaction(count => (count || 0) - 1);
-
-                    // 顯示提示 (解析前兩個數字運算)
-                    // 例如 (8 + 5) * 2，抓取 (8 + 5)
                     const match = solution.match(/(\(\d+\s*[\+\-\*\/]\s*\d+\)|\d+\s*[\+\-\*\/]\s*\d+)/); 
                     let hint = match ? match[0] : solution;
-                    
                     app.speak("提示卡已使用");
-                    alert(`💡 古老的聲音在你耳邊低語...\n\n試試看先算： ${hint}`);
+                    alert(`💡 法老王的低語：試試看先算 ${hint}`);
                 } else {
-                    app.toast('⚠️ 當前骰子似乎無解，建議不要浪費卡片');
+                    app.toast('⚠️ 當前似乎無解');
                 }
+                return;
             } 
-            else if (type === 'double') {
-                // 切換啟動狀態
-                if (app.state.activeItem === 'double') {
-                    app.state.activeItem = null;
-                    app.toast('🪲 聖甲蟲已收回');
-                } else {
-                    app.state.activeItem = 'double';
-                    app.toast('🪲 聖甲蟲加持中！下一題答對分數加倍！');
-                }
-                // 重新渲染以更新特效
-                app.renderStudentInventory(app.state.gameData.players);
+            
+            // 類型 B: 狀態切換型
+            if (app.state.activeItem === type) {
+                app.state.activeItem = null; // 取消
+                app.toast('已取消道具效果');
+            } else {
+                app.state.activeItem = type; // 啟動
+            }
+            
+            // 重新渲染
+            app.renderStudentInventory(app.state.gameData.players);
+        },
+
+        // v3.3.1 新增：顯示道具狀態框
+        renderActiveItemStatus: () => {
+             const statusEl = app.el('active-item-status');
+             const type = app.state.activeItem;
+             
+             if (!type) {
+                 statusEl.classList.add('hidden');
+                 return;
+             }
+             
+             const configs = {
+                 double: { icon: '🦂', name: '聖甲蟲祝福', desc: '本題分數 x2 (再次點擊可關閉)' },
+                 horus: { icon: '👁️', name: '荷魯斯之眼', desc: '可使用下方 1, 2, 3 按鈕 (再次點擊可關閉)' },
+                 nile: { icon: '🌊', name: '尼羅河恩賜', desc: '本回合只需 2 顆骰子 (再次點擊可關閉)' }
+             };
+             
+             const cfg = configs[type];
+             // 使用無空白 innerHTML
+             statusEl.innerHTML = `<div class="font-black text-amber-900 text-lg flex items-center justify-center gap-2"><span>${cfg.icon}</span><span>${cfg.name}啟用中</span></div><div class="text-sm text-amber-700 font-bold mt-1">${cfg.desc}</div>`;
+             statusEl.classList.remove('hidden');
+        },
+
+        // v3.3.1 新增：渲染荷魯斯之眼按鈕 (1, 2, 3)
+        renderHorusButtons: () => {
+            const area = app.el('horus-input-area');
+            if (app.state.activeItem === 'horus') {
+                // 綠色底色，粗黑字體
+                const btnClass = "cursor-control-btn bg-green-400 hover:bg-green-500 text-black border-b-4 border-green-700 active:border-b-0 active:translate-y-1 rounded-lg font-black text-2xl shadow py-2 transition-all";
+                area.innerHTML = `<button onclick="app.inputChar('1')" class="${btnClass}">1</button><button onclick="app.inputChar('2')" class="${btnClass}">2</button><button onclick="app.inputChar('3')" class="${btnClass}">3</button>`;
+                area.classList.remove('hidden');
+            } else {
+                area.innerHTML = '';
+                area.classList.add('hidden');
             }
         },
         generateInitialGameData: () => {
