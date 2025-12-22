@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>法老密碼 v3.0.5 - 解密圖騰版</title>
+    <title>法老密碼 v3.1.4 - 解密圖騰版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -86,6 +86,56 @@
         /* v3.0.5 新增：加大金字塔數字與邊框 */
         .pyramid-num-lg { font-size: 2.5rem; line-height: 1; } 
         @media (min-width: 768px) { .pyramid-num-lg { font-size: 3.5rem; } }
+
+        /* v3.0.8 新增樣式 */
+        /* 1. 模擬輸入框與游標 */
+        .fake-input-container {
+            min-height: 3.5rem;
+            display: flex; align-items: center; justify-content: center;
+            background-color: #f8fafc; border: 2px solid #c7d2fe; border-radius: 0.5rem;
+            font-size: 1.5rem; font-weight: 700; letter-spacing: 0.1em;
+            overflow-x: auto; white-space: nowrap; cursor: text;
+        }
+        .cursor-blink {
+            display: inline-block; width: 2px; height: 1.5em; background-color: #d97706;
+            margin: 0 2px; vertical-align: middle;
+            animation: blink-animation 1s step-end infinite;
+        }
+        @keyframes blink-animation { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* 2. 放大牌庫剩餘顯示 */
+        .deck-count-box { font-size: 1.1rem; padding: 0.5rem; }
+        .deck-count-num { font-size: 1.5rem; font-weight: 900; margin-left: 4px; }
+
+        /* 3. 老師介面擴充 (三欄佈局) */
+        .teacher-panel-grid { display: grid; gap: 1rem; height: 100%; }
+        @media (min-width: 1024px) {
+            /* 在大螢幕下，左邊控制台，右邊排行榜 */
+            .teacher-panel-grid { grid-template-columns: 3fr 2fr; }
+        }
+
+        /* 4. 小組詳情 Modal */
+        .team-detail-row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 8px 0; }
+        
+        /* 5. 學生分數面板 */
+        .student-score-pill { background: #fffbeb; border: 2px solid #fcd34d; color: #92400e; padding: 4px 12px; border-radius: 999px; font-weight: bold; font-size: 0.9rem; display: inline-flex; items-center; gap: 4px; box-shadow: 0 2px 0 rgba(217,119,6,0.2); }
+		/* v3.0.9 新增：通關畫面與排行榜 */
+        .game-over-modal-content {
+            background: linear-gradient(135deg, #fffbeb 0%, #fff7ed 100%);
+            border: 4px solid #b45309;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+        
+        .rank-badge { display: inline-flex; width: 2rem; height: 2rem; align-items: center; justify-content: center; border-radius: 50%; font-weight: 900; margin-right: 0.5rem; flex-shrink: 0; }
+        .rank-1 { background: #fcd34d; color: #78350f; border: 2px solid #b45309; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .rank-2 { background: #e2e8f0; color: #475569; border: 2px solid #94a3b8; }
+        .rank-3 { background: #ffedd5; color: #9a3412; border: 2px solid #c2410c; }
+        .rank-other { background: #f3f4f6; color: #6b7280; font-size: 0.8rem; width: 1.5rem; height: 1.5rem; }
+        
+        .confetti-piece { position: absolute; width: 10px; height: 10px; background-color: #ffd700; animation: confetti-fall 3s linear infinite; }
+        @keyframes confetti-fall { 0% { transform: translateY(-100%) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }
     </style>
 	<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -93,7 +143,7 @@
 <body class="min-h-screen pb-12 text-slate-800">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="text-center mb-6 relative">
-            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.0.5</h1>
+            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.1.3</h1>
             <p class="text-lg text-amber-700 font-medium">連線版 - 古埃及數學試煉</p>
             <div id="connection-status" class="absolute top-0 right-0 text-xs font-mono text-gray-400">連線中...</div>
         </div>
@@ -158,7 +208,7 @@
                 </div>
                 <div class="flex items-center gap-3 mt-2 md:mt-0">
                     <button id="voice-toggle-btn" class="hidden bg-gray-200 px-3 py-1 rounded-full text-sm font-bold" onclick="app.toggleVoice()">🔇 語音關</button>
-                    <button class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold border border-red-200" onclick="location.reload()">登出</button>
+                    <button class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold border border-red-200" onclick="app.logout()">🚪 登出</button>
                 </div>
             </div>
 
@@ -174,40 +224,58 @@
                             </div>
                     </div>
 
-                    <div class="grid grid-cols-4 gap-1 text-xs text-center font-bold text-white">
-                        <div class="bg-black/80 rounded p-1">黑:<span id="count-black">0</span></div>
-                        <div class="bg-red-600 rounded p-1">紅:<span id="count-red">0</span></div>
-                        <div class="bg-blue-600 rounded p-1">藍:<span id="count-blue">0</span></div>
-                        <div class="bg-yellow-400 text-black rounded p-1">黃:<span id="count-yellow">0</span></div>
+                    <div class="grid grid-cols-4 gap-2 text-center font-bold text-white mt-2">
+                        <div class="bg-black/80 rounded-lg deck-count-box">黑<div class="deck-count-num" id="count-black">0</div></div>
+                        <div class="bg-red-600 rounded-lg deck-count-box">紅<div class="deck-count-num" id="count-red">0</div></div>
+                        <div class="bg-blue-600 rounded-lg deck-count-box">藍<div class="deck-count-num" id="count-blue">0</div></div>
+                        <div class="bg-yellow-400 text-black rounded-lg deck-count-box">黃<div class="deck-count-num" id="count-yellow">0</div></div>
                     </div>
                 </div>
 
-                <div class="tablet-right flex flex-col h-full">
+               <div class="tablet-right flex flex-col h-full">
                     
-                    <div id="panel-teacher" class="hidden bg-white rounded-2xl p-6 shadow-lg border-2 border-amber-600 h-full">
-                        <h3 class="text-xl font-bold text-amber-900 mb-4 border-b pb-2">🎮 法老王控制台</h3>
-                        
-                        <div class="flex justify-center gap-4 mb-6 p-4 bg-amber-50 rounded-xl">
-                            <div id="t-dice-8" class="w-16 h-16 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-3xl font-black shadow">-</div>
-                            <div id="t-dice-10" class="w-16 h-16 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-3xl font-black shadow">-</div>
-                            <div id="t-dice-12" class="w-16 h-16 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-3xl font-black shadow">-</div>
-                        </div>
+                    <div id="panel-teacher" class="hidden bg-white rounded-2xl p-4 shadow-lg border-2 border-amber-600 h-full overflow-hidden">
+                        <div class="teacher-panel-grid h-full">
+                            <div class="flex flex-col h-full overflow-y-auto pr-1">
+                                <h3 class="text-xl font-bold text-amber-900 mb-4 border-b pb-2 sticky top-0 bg-white z-10">🎮 法老控場</h3>
+                                
+                                <div class="flex justify-center gap-2 mb-4 p-3 bg-amber-50 rounded-xl">
+                                    <div id="t-dice-8" class="w-14 h-14 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-2xl font-black shadow">-</div>
+                                    <div id="t-dice-10" class="w-14 h-14 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-2xl font-black shadow">-</div>
+                                    <div id="t-dice-12" class="w-14 h-14 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-2xl font-black shadow">-</div>
+                                </div>
 
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <button id="btn-roll" onclick="app.teacherRollDice()" class="col-span-2 bg-gradient-to-r from-amber-600 to-amber-700 text-white py-4 rounded-xl font-bold text-xl shadow hover:scale-105 transition-transform">🎲 擲骰子</button>
-                            <button onclick="app.teacherGetHint()" class="bg-indigo-600 text-white py-3 rounded-xl font-bold shadow hover:bg-indigo-700">🔮 法老王提示</button>
-                            <button onclick="app.forceNextRound()" class="bg-slate-600 text-white py-3 rounded-xl font-bold shadow hover:bg-slate-700">下一回合 (補牌)</button>
-                            <button onclick="app.resetGame()" class="col-span-2 bg-red-700 text-white py-3 rounded-xl font-bold shadow hover:bg-red-800">🗑️ 重置遊戲</button>
-                        </div>
+                                <div class="grid grid-cols-2 gap-3 mb-4">
+                                    <button id="btn-roll" onclick="app.teacherRollDice()" class="col-span-2 bg-gradient-to-r from-amber-600 to-amber-700 text-white py-3 rounded-xl font-bold text-lg shadow hover:scale-105 transition-transform">🎲 擲骰子</button>
+                                    <button onclick="app.teacherGetHint()" class="bg-indigo-600 text-white py-2 rounded-xl font-bold shadow hover:bg-indigo-700 text-sm">🔮 提示</button>
+                                    <button onclick="app.forceNextRound()" class="bg-slate-600 text-white py-2 rounded-xl font-bold shadow hover:bg-slate-700 text-sm">下一局</button>
+                                    <button onclick="app.triggerEndGame()" class="col-span-2 bg-red-700 text-white py-2 rounded-xl font-bold shadow hover:bg-red-800 text-sm">🏁 冒險結束</button>
+                                </div>
 
-                        <div class="mt-auto">
-                            <h4 class="font-bold text-amber-800 mb-2">🏆 即時分數</h4>
-                            <div id="teacher-scoreboard" class="max-h-[200px] overflow-y-auto space-y-2 text-sm"></div>
+                                <div class="mt-2">
+                                    <h4 class="font-bold text-amber-800 mb-2 flex justify-between items-center">
+                                        <span>🚩 冒險隊得分</span>
+                                        <span class="text-xs text-gray-500 font-normal">(點擊隊名看詳情)</span>
+                                    </h4>
+                                    <div id="teacher-team-board" class="space-y-2 text-sm"></div>
+                                </div>
+                            </div>
+
+                            <div class="border-l pl-2 flex flex-col h-full overflow-hidden">
+                                <h3 class="text-lg font-bold text-amber-900 mb-2 border-b pb-2 sticky top-0 bg-white z-10">🏆 個人英雄榜</h3>
+                                <div id="teacher-personal-board" class="overflow-y-auto flex-1 pr-1 space-y-1 text-sm">
+                                    </div>
+                            </div>
                         </div>
                     </div>
 
                     <div id="panel-student" class="hidden flex flex-col h-full gap-3">
                         
+                        <div class="flex flex-col md:flex-row gap-2 px-2 mb-2">
+                            <div id="student-my-score-pill" class="student-score-pill w-full md:w-auto justify-center">👤 載入中...</div>
+                            <div id="student-team-score-pill" class="student-score-pill w-full md:w-auto justify-center">🚩 載入中...</div>
+                        </div>
+
                         <div class="bg-white rounded-xl p-4 shadow border-2 border-amber-300">
                              <div class="flex justify-center gap-3 mb-3">
                                 <button onclick="app.inputChar(app.state.dice.d8)" id="s-dice-8" class="cursor-control-btn w-12 h-12 bg-amber-100 border-2 border-amber-400 rounded-lg font-black text-xl hover:bg-amber-200 active:bg-amber-300 transition-colors">-</button>
@@ -216,7 +284,9 @@
                             </div>
                             
                             <div class="relative">
-                                <input type="text" id="formula-input" class="w-full p-3 pl-4 pr-12 text-center text-2xl font-bold tracking-widest bg-slate-50 border-2 border-indigo-200 rounded-lg formula-input-readonly focus:outline-none focus:ring-2 focus:ring-indigo-400" readonly placeholder="點擊下方按鈕輸入">
+                                <div id="formula-display" class="fake-input-container" onclick="app.el('formula-display').focus()">
+                                    <span class="text-gray-400 text-base font-normal">點擊按鈕輸入...</span>
+                                </div>
                                 <button onclick="app.backspace()" class="absolute right-2 top-2 bottom-2 px-3 text-red-500 hover:bg-red-50 rounded cursor-control-btn font-bold">⌫</button>
                             </div>
                         </div>
@@ -243,7 +313,46 @@
                 提示訊息
             </div>
         </div>
-        
+        <div id="game-over-modal" class="fixed inset-0 z-[60] hidden flex items-center justify-center modal-backdrop">
+             <div class="game-over-modal-content bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full mx-4 relative overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="text-center mb-6 z-10">
+                    <div class="text-5xl mb-2">🎉</div>
+                    <h2 class="text-3xl md:text-4xl font-black text-amber-800 drop-shadow-sm">奪寶成功！</h2>
+                    <p class="text-amber-600 font-bold mt-2">法老王的試煉已結束</p>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-6 overflow-y-auto z-10 px-2 pb-2">
+                    <div class="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                        <h3 class="font-bold text-amber-900 border-b border-amber-300 pb-2 mb-3 text-center text-lg">🚩 冒險隊排名</h3>
+                        <div id="end-team-ranks" class="space-y-2"></div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 border border-amber-200 shadow-inner">
+                        <h3 class="font-bold text-amber-900 border-b border-amber-300 pb-2 mb-3 text-center text-lg">🏆 傳奇冒險家</h3>
+                        <div id="end-player-ranks" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <div class="mt-6 text-center z-10 pt-4 border-t border-amber-100">
+                    <p class="text-sm text-gray-500 mb-3">老師確認後可開啟新的一局</p>
+                    <div class="flex flex-col md:flex-row justify-center gap-3">
+                        <button id="btn-download-report" onclick="app.downloadGameData()" class="hidden bg-green-600 text-white px-6 py-3 rounded-full font-bold text-lg shadow-lg hover:bg-green-700 transition-transform">📥 下載戰績表</button>
+                        <button id="btn-restart-game" onclick="(async () => { try { await app.resetGame(); } catch(e) { console.error(e); } })()" class="hidden bg-gradient-to-r from-amber-600 to-amber-800 text-white px-8 py-3 rounded-full font-bold text-xl shadow-lg hover:scale-105 transition-transform">🔄 開啟新冒險</button>
+                    </div>
+                    <button id="btn-close-end-modal" onclick="app.el('game-over-modal').classList.add('hidden')" class="md:hidden mt-2 text-gray-400 underline text-sm">暫時關閉</button>
+                </div>
+             </div>
+        </div>
+
+        <div id="team-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-backdrop" onclick="if(event.target === this) this.classList.add('hidden')">
+             <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl border-4 border-amber-600 animate-[fadeIn_0.3s_ease-out]">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 class="text-xl font-black text-amber-900" id="modal-team-title">小組詳情</h3>
+                    <button onclick="document.getElementById('team-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+                </div>
+                <div id="modal-team-list" class="space-y-2 max-h-[300px] overflow-y-auto">
+                    </div>
+             </div>
+        </div>
         <div id="solution-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-backdrop">
              <div class="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl border-4 border-amber-600 text-center animate-[urgentFloat_0.5s_ease-out]">
                 <h3 class="text-2xl font-black text-amber-900 mb-4">🔮 法老王的提示</h3>
@@ -275,24 +384,45 @@
     // --- 應用程式核心邏輯 ---
     const app = {
         state: {
-            role: null, // 'teacher' or 'student'
+            role: null, 
             classId: null,
             myTeam: null,
             myName: null,
             gameData: {},
-            cards: {}, // 靜態卡片資料
+            cards: {}, 
             voiceEnabled: false,
             localTimer: null,
-            selectedCardIndex: null, // 學生選中的卡片
+            selectedCardIndex: null,
+            // v3.0.8 新增: 輸入狀態管理
+            inputFormula: "", 
+            inputCursorPos: 0,
+            lastRoundProcessed: 0,
+            isResetting: false // v3.1.2 新增：防止老師重置時自我登出
         },
 
-        // DOM 元素快取 (Lazy load)
         el: (id) => document.getElementById(id),
 
-        // --- 1. 初始化與流程 ---
+        // --- 1. 初始化與自動登入 ---
         init: () => {
             app.createPredefinedCards();
-            // 檢查 URL 是否帶有 classId (方便重新整理後自動重連，此處暫略，以介面為主)
+            // v3.0.8: 自動重連機制
+            const savedState = localStorage.getItem('pharaoh_v3_state');
+            if (savedState) {
+                const parsed = JSON.parse(savedState);
+                // 簡單驗證資料完整性
+                if (parsed.classId && parsed.role) {
+                    console.log('🔄 偵測到斷線重連...', parsed);
+                    app.state.classId = parsed.classId;
+                    app.state.role = parsed.role;
+                    app.state.myTeam = parsed.team; // 老師此項可能為 null
+                    app.state.myName = parsed.name; // 老師此項可能為 null
+                    
+                    // 恢復介面
+                    app.el('page-role-select').classList.add('hidden');
+                    app.startGameInterface();
+                    app.toast('🔄 已自動恢復連線');
+                }
+            }
         },
 
         // --- 2. 角色與登入流程 ---
@@ -312,36 +442,33 @@
             app.el('page-student-login').classList.add('hidden');
             app.el('page-role-select').classList.remove('hidden');
             app.state.role = null;
+            localStorage.removeItem('pharaoh_v3_state'); // 清除快取
         },
 
-        
-        // 老師建立房間
         createClass: () => {
             const classId = app.el('setup-class-id').value.trim();
             if (!classId) return app.toast('❌ 請輸入班級代碼');
             
             app.state.classId = classId;
+            app.saveLocalState(); // 儲存狀態
+
             const classRef = db.ref(`classes/${classId}`);
-            
-            // v3.0.2: 產生初始資料 (包含牌庫與金字塔)
             const initialData = app.generateInitialGameData();
 
-            // 初始化遊戲資料
             classRef.set({
                 status: 'waiting', 
                 dice: { d8: '-', d10: '-', d12: '-' },
                 round: 1,
                 timer: 30,
                 timerActive: false,
-                pyramid: initialData.pyramid, // 初始金字塔
-                decks: initialData.decks,     // v3.0.2: 存入剩餘牌庫
+                pyramid: initialData.pyramid,
+                decks: initialData.decks,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             }).then(() => {
                 app.startGameInterface();
             });
         },
 
-        // 學生檢查房間
         checkClassExists: () => {
             const classId = app.el('login-class-id').value.trim();
             if (!classId) return app.toast('❌ 請輸入班級代碼');
@@ -351,7 +478,7 @@
                     app.state.classId = classId;
                     app.el('login-step-1').classList.add('hidden');
                     app.el('login-step-2').classList.remove('hidden');
-                    app.renderTeamButtons(); // 渲染組別按鈕
+                    app.renderTeamButtons();
                 } else {
                     app.toast('❌ 找不到此班級，請確認代碼');
                 }
@@ -387,30 +514,38 @@
             if (!app.state.myTeam) return app.toast('❌ 請選擇探險小組');
 
             app.state.myName = name;
-            
-            // 註冊學生資料到 Firebase
+            app.saveLocalState(); // 儲存狀態
+
             const playerRef = db.ref(`classes/${app.state.classId}/players/${app.state.myTeam}/${name}`);
             playerRef.update({
                 name: name,
-                score: 0, // 初始分數，如果已存在不覆蓋
+                score: 0,
                 lastActive: firebase.database.ServerValue.TIMESTAMP
             });
 
             app.startGameInterface();
         },
 
+        // v3.0.8: 儲存登入狀態到 LocalStorage
+        saveLocalState: () => {
+            const data = {
+                role: app.state.role,
+                classId: app.state.classId,
+                team: app.state.myTeam,
+                name: app.state.myName
+            };
+            localStorage.setItem('pharaoh_v3_state', JSON.stringify(data));
+        },
+
         // --- 3. 遊戲介面與同步 ---
         startGameInterface: () => {
-            // 隱藏登入頁，顯示主遊戲區
             app.el('page-teacher-setup').classList.add('hidden');
             app.el('page-student-login').classList.add('hidden');
             app.el('game-board').classList.remove('hidden');
             
-            // 設置資訊列
             app.el('display-class-id').textContent = app.state.classId;
             app.el('user-identity').textContent = app.state.role === 'teacher' ? '👑 老師' : `🤠 ${app.state.myName}`;
 
-            // 根據角色顯示面板
             if (app.state.role === 'teacher') {
                 app.el('panel-teacher').classList.remove('hidden');
                 app.el('voice-toggle-btn').classList.remove('hidden');
@@ -418,19 +553,16 @@
                 app.el('panel-student').classList.remove('hidden');
             }
 
-            // 啟動 Firebase 監聽
             app.listenToGameData();
-			// --- 老師端專用：驅動全域計時器 ---
             if (app.state.role === 'teacher') {
                 setInterval(() => {
                     if (app.state.gameData && app.state.gameData.timerActive && app.state.gameData.timer > 0) {
                         const newTime = app.state.gameData.timer - 1;
                         db.ref(`classes/${app.state.classId}/timer`).set(newTime);
                         
-                        // 倒數 10 秒警告音
                         if (newTime <= 10 && newTime > 0) app.speak(newTime.toString());
                         if (newTime === 0) {
-                            app.handleTimeUp(); // 老師端處理結束
+                            app.handleTimeUp();
                             db.ref(`classes/${app.state.classId}/timerActive`).set(false);
                         }
                     }
@@ -438,25 +570,39 @@
             }
         },
 
-        listenToGameData: () => {
+       listenToGameData: () => {
             const classRef = db.ref(`classes/${app.state.classId}`);
             
             classRef.on('value', snapshot => {
                 const data = snapshot.val();
-                if (!data) return;
                 
+               // [v3.1.2] 偵測到房間被重置或刪除 -> 強制登出
+                if (!data || data.status === 'restarting') {
+                    // 如果我是正在執行重置的老師,請忽略這個訊號,等待 resetGame 函式完成
+                    if (app.state.isResetting) return;
+
+                    app.toast('⚠️ 房間已重置,正在登出...');
+                    setTimeout(() => app.logout(), 2000); // 給予稍微充裕的時間看提示
+                    return;
+                }
+
+                // [v3.0.8] 偵測回合切換,清空輸入
+                if (data.round && data.round > app.state.lastRoundProcessed) {
+                    app.state.lastRoundProcessed = data.round;
+                    if (app.state.role === 'student') {
+                        app.resetInput();
+                    }
+                }
+
                 app.state.gameData = data;
                 app.updateUI(data);
             });
         },
 
-        // --- 4. UI 更新邏輯 ---
-      updateUI: (data) => {
-            // 1. 基本狀態文字與樣式重置
+        updateUI: (data) => {
             const statusEl = app.el('game-status-text');
             const statusBox = statusEl.parentElement;
             
-            // 預設樣式 (每次更新先還原，避免卡在警告狀態)
             statusBox.className = "bg-amber-100 rounded-2xl p-4 shadow-inner text-center relative border-2 border-amber-300 transition-colors duration-300";
             statusEl.className = "text-xl font-bold text-amber-800";
             
@@ -464,17 +610,13 @@
                 'waiting': '等待法老王開啟試煉...',
                 'rolling': '🎲 命運之骰轉動中...',
                 'playing': '✨ 試煉進行中 - 破解圖騰！',
-                'ended': '🏁 試煉結束'
+                'ended': '🏁 冒險結束 - 統計戰果'
             };
             statusEl.textContent = statusMap[data.status] || data.status;
 
-            // 更新骰子
             app.updateDiceUI(data.dice);
-
-            // 更新金字塔
             app.renderPyramid(data.pyramid);
 
-            // 更新計時器
             if (data.timerActive) {
                 app.el('timer-display').classList.remove('hidden');
                 app.el('timer-display').textContent = data.timer;
@@ -483,26 +625,39 @@
                 app.el('timer-display').classList.add('hidden');
             }
             
-            // 按鈕鎖定邏輯
-            const btnRoll = app.el('btn-roll');
+            app.calculateAndRenderScores(data.players);
+
+            // v3.0.9: 遊戲結束時，自動彈出結算畫面
+            if (data.status === 'ended') {
+                app.renderGameOverStats(data.players);
+                app.el('game-over-modal').classList.remove('hidden');
+                
+                // [v3.1.0] 只有老師能看到「下載」與「重啟」按鈕
+                if (app.state.role === 'teacher') {
+                    app.el('btn-restart-game').classList.remove('hidden');
+                    app.el('btn-download-report').classList.remove('hidden'); // 顯示下載按鈕
+                }
+            } else {
+                app.el('game-over-modal').classList.add('hidden');
+            }
+
+            // 老師端邏輯
             if (app.state.role === 'teacher') {
-                if (data.status === 'waiting' || data.status === 'ended') {
+                const btnRoll = app.el('btn-roll');
+                // 結束時鎖定擲骰
+                if (data.status === 'waiting') {
                     btnRoll.disabled = false;
                     btnRoll.classList.remove('btn-disabled');
                     btnRoll.textContent = "🎲 擲骰子";
                 } else {
                     btnRoll.disabled = true;
                     btnRoll.classList.add('btn-disabled');
-                    btnRoll.textContent = (data.status === 'rolling') ? "🎲 轉動中..." : "🔒 鎖定中";
+                    btnRoll.textContent = (data.status === 'ended') ? "🏁 統計中" : ((data.status === 'rolling') ? "🎲 轉動中..." : "🔒 鎖定中");
                 }
                 
-                app.renderTeacherScoreboard(data.players);
-
-                // v3.0.6: 死局檢查 (Deadlock Check)
-                // 只要狀態是 playing，無論是否在倒數(timerActive)，都要檢查
+                // 死局檢查 (僅在遊玩中)
                 if (data.status === 'playing') {
                     const currentDice = [data.dice.d8, data.dice.d10, data.dice.d12];
-                    // 取得場上剩餘目標
                     const remainingTargets = data.pyramid
                         .filter(c => c && !c.isTaken)
                         .map(c => c.number);
@@ -515,35 +670,150 @@
                                 break;
                             }
                         }
-                        
-                        // 若全場無解，改變上方狀態欄樣式
                         if (!hasSolution) {
                             statusBox.className = "bg-yellow-400 rounded-2xl p-4 shadow-xl text-center relative border-4 border-black animate-pulse";
                             statusEl.className = "text-2xl font-black text-black";
-                            // 保留倒數計時顯示，但文字改為警告
-                            if (data.timerActive) {
-                                statusEl.innerHTML = `⚠️ 警告：場上已無可解數字！<br><span class="text-base font-medium">請等待倒數結束或手動下一局</span>`;
-                            } else {
-                                statusEl.innerHTML = `⚠️ 警告：場上已無可解數字！<br><span class="text-base font-medium">建議直接按「下一回合」</span>`;
-                            }
+                            statusEl.innerHTML = `⚠️ 警告：場上已無可解數字！<br><span class="text-base font-medium">請直接按「冒險結束」或「下一局」</span>`;
                         }
                     }
                 }
             }
         },
 
+        // v3.0.9: 修正後的計分與顯示邏輯
+        calculateAndRenderScores: (players) => {
+            if (!players) return;
+
+            const teamStats = {}; 
+            let allPlayers = [];
+
+            for(let i=1; i<=6; i++) {
+                const teamKey = `team${i}`;
+                teamStats[teamKey] = {
+                    key: teamKey,
+                    name: app.getTeamName(teamKey),
+                    shortName: app.getTeamShortName(teamKey), // v3.0.9
+                    score: 0,
+                    count: 0,
+                    members: []
+                };
+            }
+
+            Object.keys(players).forEach(teamKey => {
+                if(teamStats[teamKey]) {
+                    const membersObj = players[teamKey];
+                    Object.values(membersObj).forEach(p => {
+                        teamStats[teamKey].score += (p.score || 0);
+                        teamStats[teamKey].count += 1;
+                        teamStats[teamKey].members.push(p);
+                        allPlayers.push({...p, team: teamKey});
+                    });
+                }
+            });
+
+            // v3.0.9: 學生端顯示優化 - 顯示名字與完整組名
+            if (app.state.role === 'student' && app.state.myTeam && app.state.myName) {
+                const myTeamData = players[app.state.myTeam];
+                const myData = myTeamData ? myTeamData[app.state.myName] : null;
+                const myScore = myData ? (myData.score || 0) : 0;
+                
+                app.el('student-my-score-pill').textContent = `👤 ${app.state.myName} 得分: ${myScore}`;
+                app.el('student-team-score-pill').textContent = `🚩 ${teamStats[app.state.myTeam].name} 得分: ${teamStats[app.state.myTeam].score}`;
+            }
+
+            // 老師端渲染
+            if (app.state.role === 'teacher') {
+                let teamHtml = '';
+                for(let i=1; i<=6; i++) {
+                    const t = teamStats[`team${i}`];
+                    teamHtml += `<div onclick="app.showTeamModal('${t.key}')" class="flex justify-between items-center p-2 bg-slate-50 rounded border border-slate-200 cursor-pointer hover:bg-amber-100 transition-colors"><div class="flex items-center gap-2"><span class="font-bold text-gray-700">${t.name}</span><span class="text-xs bg-gray-200 text-gray-600 px-1 rounded">${t.count}人</span></div><span class="font-black text-amber-700 text-lg">${t.score}</span></div>`;
+                }
+                app.el('teacher-team-board').innerHTML = teamHtml;
+
+                allPlayers.sort((a, b) => b.score - a.score);
+                let personalHtml = '';
+                allPlayers.forEach((p, index) => {
+                    const rankIcon = index === 0 ? '🥇' : (index === 1 ? '🥈' : (index === 2 ? '🥉' : ''));
+                    const highlight = (index < 3) ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-slate-100';
+                    personalHtml += `<div class="flex justify-between items-center p-2 ${highlight} rounded border mb-1"><div class="truncate mr-2"><span class="font-bold mr-1 text-sm">${index+1}.</span>${p.name} <span class="text-xs text-gray-400">(${app.getTeamShortName(p.team)})</span></div><div class="font-bold text-amber-700 flex-shrink-0">${p.score}${rankIcon}</div></div>`;
+                });
+                if(allPlayers.length === 0) personalHtml = '<div class="text-center text-gray-400 py-4 text-xs">暫無冒險者加入</div>';
+                app.el('teacher-personal-board').innerHTML = personalHtml;
+                
+                app.state.latestTeamStats = teamStats;
+            }
+        },
+
+        // v3.0.9: 產生遊戲結束的結算畫面內容
+        renderGameOverStats: (players) => {
+            if (!players) return;
+            
+            // 1. 計算小組排名
+            const teams = [];
+            for(let i=1; i<=6; i++) {
+                const key = `team${i}`;
+                if(players[key]) {
+                    let score = 0;
+                    Object.values(players[key]).forEach(p => score += (p.score||0));
+                    teams.push({ name: app.getTeamName(key), score: score });
+                } else {
+                    teams.push({ name: app.getTeamName(key), score: 0 });
+                }
+            }
+            teams.sort((a, b) => b.score - a.score);
+            
+            let teamHtml = '';
+            teams.forEach((t, i) => {
+                const rankClass = i===0 ? 'rank-1' : (i===1 ? 'rank-2' : (i===2 ? 'rank-3' : 'rank-other'));
+                teamHtml += `<div class="flex items-center justify-between p-2 rounded bg-white border border-gray-100"><div class="flex items-center"><span class="rank-badge ${rankClass}">${i+1}</span><span class="font-bold text-gray-700">${t.name}</span></div><span class="font-black text-amber-700">${t.score}分</span></div>`;
+            });
+            app.el('end-team-ranks').innerHTML = teamHtml;
+
+            // 2. 計算個人 MVP (前 3-5 名)
+            let allPlayers = [];
+            Object.keys(players).forEach(teamKey => {
+                Object.values(players[teamKey]).forEach(p => {
+                    allPlayers.push({...p, teamName: app.getTeamShortName(teamKey)});
+                });
+            });
+            allPlayers.sort((a, b) => b.score - a.score);
+            
+            let playerHtml = '';
+            allPlayers.slice(0, 5).forEach((p, i) => {
+                const rankClass = i===0 ? 'rank-1' : (i===1 ? 'rank-2' : (i===2 ? 'rank-3' : 'rank-other'));
+                playerHtml += `<div class="flex items-center justify-between p-2 rounded bg-slate-50 border border-slate-100"><div class="flex items-center"><span class="rank-badge ${rankClass}">${i+1}</span><div><div class="font-bold text-gray-800">${p.name}</div><div class="text-xs text-gray-500">${p.teamName}</div></div></div><span class="font-black text-amber-700">${p.score}分</span></div>`;
+            });
+            if(allPlayers.length === 0) playerHtml = '<div class="text-center text-gray-400">無數據</div>';
+            app.el('end-player-ranks').innerHTML = playerHtml;
+        },
+
+        showTeamModal: (teamKey) => {
+            if (!app.state.latestTeamStats) return;
+            const team = app.state.latestTeamStats[teamKey];
+            if (!team) return;
+
+            app.el('modal-team-title').textContent = `${team.name} (${team.count}人)`;
+            const listEl = app.el('modal-team-list');
+            
+            // 排序組員分數
+            team.members.sort((a, b) => b.score - a.score);
+            
+            let html = '';
+            team.members.forEach(m => {
+                html += `<div class="team-detail-row"><span class="font-bold text-gray-700">${m.name}</span><span class="font-bold text-amber-600">${m.score}分</span></div>`;
+            });
+            
+            if (team.members.length === 0) html = '<div class="text-center text-gray-400 py-4">目前沒有組員</div>';
+            
+            listEl.innerHTML = html;
+            app.el('team-modal').classList.remove('hidden');
+        },
+
         updateDiceUI: (dice) => {
-            // 老師端
-            app.el('t-dice-8').textContent = dice.d8;
-            app.el('t-dice-10').textContent = dice.d10;
-            app.el('t-dice-12').textContent = dice.d12;
-            
-            // 學生端
-            app.el('s-dice-8').textContent = dice.d8;
-            app.el('s-dice-10').textContent = dice.d10;
-            app.el('s-dice-12').textContent = dice.d12;
-            
-            // 記錄當前骰子值到 state 方便輸入
+            ['d8', 'd10', 'd12'].forEach(k => {
+                app.el(`t-dice-${k.slice(1)}`).textContent = dice[k];
+                app.el(`s-dice-${k.slice(1)}`).textContent = dice[k];
+            });
             app.state.dice = dice;
         },
 
@@ -551,16 +821,12 @@
             const board = app.el('pyramid-board');
             if (!pyramidData) return;
             
-            // 定義統一的卡片尺寸類別 (加入 flex-shrink-0 防止被擠壓變形)
-            // v3.0.6: 統一尺寸 w-20 h-24 (手機) / w-24 h-28 (平板以上)
             const cardSizeClass = "w-20 h-24 md:w-24 md:h-28 flex-shrink-0";
-            
-            // 10張卡片的結構: [0], [1,2], [3,4,5], [6,7,8,9]
             const rows = [[0], [1,2], [3,4,5], [6,7,8,9]];
             let html = '';
             
             rows.forEach(rowIndices => {
-                html += '<div class="flex justify-center mb-3 gap-2">'; // 使用 gap-2 統一間距
+                html += '<div class="flex justify-center mb-3 gap-2">'; 
                 rowIndices.forEach(idx => {
                     const card = pyramidData[idx];
                     if (card) {
@@ -569,10 +835,8 @@
                         const colorClass = app.getCardColorClass(card.color);
                         const visibilityClass = card.isTaken ? 'opacity-0 pointer-events-none' : 'opacity-100';
                         
-                        // 卡片本體
                         html += `<div onclick="app.studentSelectCard(${idx})" class="${cardSizeClass} rounded-xl shadow-lg cursor-pointer transition-all duration-200 ${colorClass} ${ringClass} ${visibilityClass} flex items-center justify-center font-black relative border-2 border-white/20"><div class="absolute top-1 right-2 text-sm opacity-60 font-bold">${card.points}</div><span class="pyramid-num-lg drop-shadow-md">${card.number}</span></div>`;
                     } else {
-                        // 空位 (必須使用相同的 cardSizeClass 確保大小一致)
                         html += `<div class="${cardSizeClass} rounded-xl border-4 border-dashed border-amber-300/50 bg-white/20"></div>`;
                     }
                 });
@@ -581,186 +845,199 @@
 
             board.innerHTML = html;
             
-            // 更新卡片剩餘數量
             const decks = app.state.gameData.decks || {};
-            const counts = {
-                black: decks.black ? decks.black.length : 0,
-                red: decks.red ? decks.red.length : 0,
-                blue: decks.blue ? decks.blue.length : 0,
-                yellow: decks.yellow ? decks.yellow.length : 0
-            };
-            app.el('count-black').textContent = counts.black;
-            app.el('count-red').textContent = counts.red;
-            app.el('count-blue').textContent = counts.blue;
-            app.el('count-yellow').textContent = counts.yellow;
+            app.el('count-black').textContent = decks.black ? decks.black.length : 0;
+            app.el('count-red').textContent = decks.red ? decks.red.length : 0;
+            app.el('count-blue').textContent = decks.blue ? decks.blue.length : 0;
+            app.el('count-yellow').textContent = decks.yellow ? decks.yellow.length : 0;
         },
 
         studentSelectCard: (index) => {
             if (app.state.role !== 'student') return;
-            if (app.state.gameData.status !== 'playing') {
-                app.toast('✋ 現在還不能選卡片喔');
-                return;
-            }
+            if (app.state.gameData.status !== 'playing') return app.toast('✋ 現在還不能選卡片喔');
             
             app.state.selectedCardIndex = index;
-           // 重新渲染以顯示選取框
             app.renderPyramid(app.state.gameData.pyramid);
-            
-            // 聚焦輸入框 (修正: 保留原本輸入的公式，不主動清空)
-            app.el('formula-input').focus();
+            app.renderFormulaInput(); // 確保選擇後也能看見游標
             app.toast(`已選擇目標：${app.state.gameData.pyramid[index].number}`);
         },
 
-        // --- 5. 老師控制功能 ---
-        /* --- 老師擲骰與解法驗證開始 --- */
-		/* --- v3.0.2 新增: 法老王提示 --- */
         teacherGetHint: () => {
             if (app.state.gameData.status !== 'playing') return app.toast('⚠️ 請先擲骰子並開始遊戲');
-            
-            const d8 = app.state.gameData.dice.d8;
-            const d10 = app.state.gameData.dice.d10;
-            const d12 = app.state.gameData.dice.d12;
-            
-            // 使用 AI 解題
+            const { d8, d10, d12 } = app.state.gameData.dice;
             const solution = app.findSolution([d8, d10, d12]);
             
             if (solution) {
-                // 提示規則：只顯示前兩個數字的運算
-                // Regex: 尋找 "數字 運算符 數字" 的結構 (例如 3 + 4)
-                // 排除外圍括號，抓取核心運算
                 const match = solution.match(/(\d+\s*[\+\-\*\/]\s*\d+)/);
-                let hint = solution;
-                if (match) {
-                    hint = match[0]; // 抓取到的第一組運算，如 "3 + 4" 或 "7 * 3"
-                }
-                
-                // 顯示模態窗
-                const modal = app.el('solution-modal');
-                const hintText = app.el('solution-hint-text');
-                hintText.textContent = `(${hint}) ... ?`;
-                modal.classList.remove('hidden');
+                let hint = match ? match[0] : solution;
+                app.el('solution-hint-text').textContent = `(${hint}) ... ?`;
+                app.el('solution-modal').classList.remove('hidden');
                 app.speak("法老王提示：" + hint);
             } else {
                 app.toast("⚠️ 目前的骰子似乎無解...");
             }
         },
-      /* --- v3.0.4 優化: 擲骰動畫 + 死局自動重置 --- */
-        teacherRollDice: () => {
+
+       teacherRollDice: () => {
             if (app.state.gameData.status === 'rolling' || app.state.gameData.status === 'playing') return;
 
-            // 1. 設定為滾動狀態 (鎖定按鈕已由 updateUI 處理，這裡同步雲端狀態)
             db.ref(`classes/${app.state.classId}`).update({
                 status: 'rolling',
                 dice: { d8: '?', d10: '?', d12: '?' }
             });
             
-            // 播放滾動音效或語音
             if (app.state.voiceEnabled) app.speak("命運之骰轉動中...");
 
-            // v3.0.5: 本地端滾動動畫 (視覺效果)
             const rollInterval = setInterval(() => {
                 app.el('t-dice-8').textContent = Math.floor(Math.random() * 8) + 1;
                 app.el('t-dice-10').textContent = Math.floor(Math.random() * 10) + 1;
                 app.el('t-dice-12').textContent = Math.floor(Math.random() * 12) + 1;
             }, 80);
 
-            // 2. 延遲 1.5 秒後產生最終結果
             setTimeout(() => {
-                clearInterval(rollInterval); // 停止動畫
-                
-                // 產生最終數值 (符合規則: 8面, 10面, 12面)
+                clearInterval(rollInterval);
                 const d8 = Math.floor(Math.random() * 8) + 1;
                 const d10 = Math.floor(Math.random() * 10) + 1;
                 const d12 = Math.floor(Math.random() * 12) + 1;
-                const diceArr = [d8, d10, d12];
-
-                // 獲取版面上有效卡片
-                const activeTargets = app.state.gameData.pyramid
-                    .filter(card => card && !card.isTaken)
-                    .map(card => card.number);
-
-                // 3. 檢查是否有解
+                
+                const activeTargets = app.state.gameData.pyramid.filter(c => c && !c.isTaken).map(c => c.number);
                 let hasSolution = false;
                 for (let target of activeTargets) {
-                    if (app.findSolution(diceArr, target)) {
-                        hasSolution = true;
-                        break;
-                    }
+                    if (app.findSolution([d8, d10, d12], target)) { hasSolution = true; break; }
                 }
 
                 if (!hasSolution) {
-                    // 無解：先顯示點數，3秒後自動下一局
                     db.ref(`classes/${app.state.classId}/dice`).update({ d8, d10, d12 });
-                    app.speak(`擲出 ${d8}, ${d10}, ${d12}。諸神沈默，此局無解！`);
-                    app.toast(`❌ 點數 ${d8}, ${d10}, ${d12} 無法破解圖騰，3秒後進入下一輪...`);
-                    
-                    setTimeout(() => {
-                        app.forceNextRound();
-                    }, 3000);
+                    app.speak(`擲出 ${d8}, ${d10}, ${d12}。此局無解！`);
+                    app.toast(`❌ 無法破解，3秒後換局...`);
+                    setTimeout(() => app.forceNextRound(), 3000);
                 } else {
-                    // 有解：正式開始
                     db.ref(`classes/${app.state.classId}`).update({
                         status: 'playing',
                         dice: { d8, d10, d12 },
                         timerActive: false,
                         timer: 30
                     });
-                    if (app.state.voiceEnabled) app.speak(`擲骰結果：${d8}、${d10}、${d12}。試煉開始！`);
+                    if (app.state.voiceEnabled) app.speak(`擲骰結果：${d8}、${d10}、${d12}。`);
                 }
-            }, 1500); // 1.5秒動畫時間
+            }, 1500);
         },
-        /* --- 老師擲骰與解法驗證結束 --- */
+
+        // [v3.1.0] 全新登出邏輯：清除本地狀態 -> 重整頁面
+        logout: () => {
+            localStorage.removeItem('pharaoh_v3_state'); // 清除自動登入紀錄
+            location.reload(); // 重整後會回到角色選擇頁面
+        },
+
+       // [v3.1.0] 下載遊戲資料 (HTML 報表)
+        downloadGameData: () => {
+            const players = app.state.gameData.players || {};
+            const date = new Date().toLocaleDateString();
+            const classId = app.state.classId;
+            
+            let tableRows = '';
+            // 整理資料
+            let allPlayers = [];
+            Object.keys(players).forEach(teamKey => {
+                Object.values(players[teamKey]).forEach(p => {
+                    allPlayers.push({...p, teamName: app.getTeamName(teamKey)});
+                });
+            });
+            allPlayers.sort((a, b) => b.score - a.score);
+
+            allPlayers.forEach((p, i) => {
+                tableRows += `<tr style="background:${i%2===0?'#fff':'#f9fafb'}"><td style="padding:10px;border:1px solid #ddd;text-align:center">${i+1}</td><td style="padding:10px;border:1px solid #ddd">${p.name}</td><td style="padding:10px;border:1px solid #ddd">${p.teamName}</td><td style="padding:10px;border:1px solid #ddd;font-weight:bold;color:#b45309">${p.score}</td></tr>`;
+            });
+
+            // 建立簡易 HTML 報表
+            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>法老密碼戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.1.3 系統自動生成</p></body></html>`;
+
+            const blob = new Blob([reportHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `法老密碼_戰績_${classId}_${new Date().getTime()}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            app.toast('📥 戰績表下載中...');
+        },
+
+       // [v3.1.2] 優化後的重置邏輯：使用 Promise 避免阻塞主執行緒
+        resetGame: async () => {
+             if(!confirm('⚠️ 確定要開啟新的一局嗎？\n\n1. 所有學生的分數將被清空。\n2. 所有人都會被強制登出。\n3. 請確認已下載戰績表。')) {
+                 return; // 使用者取消
+             }
+
+             try {
+                 app.el('game-over-modal').classList.add('hidden');
+                 
+                 // 1. 標記自己正在重置，防止被 listenToGameData 搶先登出
+                 app.state.isResetting = true;
+
+                 // 2. 通知所有學生端重置 (學生收到 restarting 會自動登出)
+                 await db.ref(`classes/${app.state.classId}`).update({ status: 'restarting' });
+                 app.toast('🔄 正在重置遊戲並登出所有人...');
+
+                 // 3. 使用 Promise 等待 3 秒 (非阻塞)
+                 await new Promise(resolve => setTimeout(resolve, 3000));
+                 
+                 // 4. 產生新的遊戲資料
+                 const initialData = app.generateInitialGameData();
+                 
+                 // 5. 直接覆寫整個班級資料 (原子操作)
+                 await db.ref(`classes/${app.state.classId}`).set({
+                    status: 'waiting', 
+                    dice: { d8: '-', d10: '-', d12: '-' },
+                    round: 1,
+                    timer: 30,
+                    timerActive: false,
+                    pyramid: initialData.pyramid,
+                    decks: initialData.decks,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                 });
+                 
+                 // 6. 資料庫重置完成，老師最後執行登出
+                 app.logout();
+                 
+             } catch (err) {
+                 console.error("Reset failed:", err);
+                 alert('重置過程發生錯誤，請手動重新整理頁面。');
+                 app.logout();
+             }
+        },
         
         forceNextRound: () => {
-             // v3.0.2: 補滿金字塔邏輯
              const gameData = app.state.gameData;
-             if (!gameData || !gameData.decks) return app.toast('⚠️ 資料同步中，請稍後...');
+             if (!gameData || !gameData.decks) return;
 
              const newPyramid = [...(gameData.pyramid || [])];
-             const newDecks = JSON.parse(JSON.stringify(gameData.decks)); // 深拷貝以免直接修改 state
-             let isGameOver = false;
+             const newDecks = JSON.parse(JSON.stringify(gameData.decks));
              let hasRefilled = false;
+             let cannotRefill = false;
 
-             // 遍歷金字塔 10 個位置
-             // 規則: 0(黑), 1-2(紅), 3-5(藍), 6-9(黃)
              const slots = [
-                 {idx:0, color:'black'},
-                 {idx:1, color:'red'}, {idx:2, color:'red'},
+                 {idx:0, color:'black'}, {idx:1, color:'red'}, {idx:2, color:'red'},
                  {idx:3, color:'blue'}, {idx:4, color:'blue'}, {idx:5, color:'blue'},
                  {idx:6, color:'yellow'}, {idx:7, color:'yellow'}, {idx:8, color:'yellow'}, {idx:9, color:'yellow'}
              ];
 
              slots.forEach(slot => {
-                 // 如果該位置是空的 (null) 或已被拿走 (isTaken)，嘗試補牌
                  if (!newPyramid[slot.idx] || newPyramid[slot.idx].isTaken) {
-                     // 檢查對應顏色的牌庫是否還有牌
                      if (newDecks[slot.color] && newDecks[slot.color].length > 0) {
-                         // 抽一張牌
-                         const nextCard = newDecks[slot.color].pop(); 
-                         // 設定到金字塔
-                         newPyramid[slot.idx] = nextCard;
+                         newPyramid[slot.idx] = newDecks[slot.color].pop(); 
                          hasRefilled = true;
                      } else {
-                         // 該顏色沒牌了，設定為 null (永久空缺)
                          newPyramid[slot.idx] = null;
+                         cannotRefill = true;
                      }
                  }
              });
 
-             // 檢查是否完全沒牌了 (金字塔全空 且 所有牌庫全空 -> 其實只要金字塔全空通常就無法遊戲了，或是檢查是否所有位置都為 null)
-             const isPyramidEmpty = newPyramid.every(p => p === null);
-             if (isPyramidEmpty) {
-                 isGameOver = true;
-             }
-
-             if (isGameOver) {
-                 db.ref(`classes/${app.state.classId}`).update({
-                     status: 'ended',
-                     timerActive: false
-                 });
-                 app.toast('🏁 牌庫已空，遊戲結束！');
+             if (cannotRefill) {
+                 app.triggerEndGame();
+                 app.toast('🏁 牌庫耗盡，冒險結束！');
              } else {
-                 // 更新 Firebase
                  db.ref(`classes/${app.state.classId}`).update({
                      status: 'waiting',
                      dice: {d8:'-', d10:'-', d12:'-'},
@@ -769,90 +1046,91 @@
                      decks: newDecks,
                      round: (gameData.round || 1) + 1
                  });
-                 app.toast(hasRefilled ? '已進入下一回合並補牌' : '已進入下一回合 (無牌可補)');
+                 app.toast(hasRefilled ? '已進入下一回合並補牌' : '已進入下一回合');
              }
+        },
+
+        // v3.0.9: 觸發遊戲結束
+        triggerEndGame: () => {
+            if (app.state.role === 'teacher') {
+                db.ref(`classes/${app.state.classId}`).update({
+                    status: 'ended',
+                    timerActive: false
+                });
+            }
         },
         
         resetGame: () => {
-             if(confirm('確定要重置所有遊戲進度嗎？')) {
+             if(confirm('⚠️ 確定要開啟新的一局嗎？\n這將會清除所有分數與進度！')) {
+                 app.el('game-over-modal').classList.add('hidden'); // 關閉彈窗
                  app.createClass(); // 重新初始化資料
              }
         },
 
-        renderTeacherScoreboard: (players) => {
-            const list = app.el('teacher-scoreboard');
-            if (!players) { list.innerHTML = '<div class="text-center text-gray-400">尚無玩家加入</div>'; return; }
-            
-            // 扁平化玩家資料: {team, name, score}
-            let allPlayers = [];
-            Object.keys(players).forEach(teamKey => {
-                const teamPlayers = players[teamKey];
-                Object.values(teamPlayers).forEach(p => {
-                    allPlayers.push({...p, team: teamKey});
-                });
-            });
-
-            allPlayers.sort((a, b) => b.score - a.score);
-
-            // 無空白渲染
-            let html = '';
-            allPlayers.forEach((p, i) => {
-                const icon = i===0 ? '👑' : '';
-                html += `<div class="flex justify-between items-center p-2 bg-slate-50 rounded border border-slate-200"><div class="flex items-center gap-2"><span class="font-bold w-6">${i+1}.</span><span>${p.name} (${app.getTeamName(p.team)})</span></div><span class="font-bold text-amber-700">${p.score}分 ${icon}</span></div>`;
-            });
-            list.innerHTML = html;
-        },
-        
-       getTeamName: (key) => {
+        getTeamName: (key) => {
             const map = {
-                team1: '阿努比斯', team2: '荷魯斯', team3: '巴斯泰特',
-                team4: '歐西里斯', team5: '伊西斯', team6: '太陽神拉'
+                team1: '第1組:阿努比斯', team2: '第2組:荷魯斯', team3: '第3組:巴斯泰特',
+                team4: '第4組:歐西里斯', team5: '第5組:伊西斯', team6: '第6組:太陽神拉'
             };
             return map[key] || key;
         },
+        
+        getTeamShortName: (key) => {
+             const map = { team1: '阿努比斯', team2: '荷魯斯', team3: '巴斯泰特', team4: '歐西里斯', team5: '伊西斯', team6: '太陽神拉' };
+             return map[key] || '';
+        },
 
-        // --- 6. 學生輸入與方向鍵邏輯 ---
+        // --- 6. v3.0.8 強化版輸入控制 ---
+        renderFormulaInput: () => {
+            const displayEl = app.el('formula-display');
+            const val = app.state.inputFormula;
+            const pos = app.state.inputCursorPos;
+            
+            // 插入游標 HTML
+            const part1 = val.substring(0, pos);
+            const part2 = val.substring(pos);
+            
+            // 如果內容為空，顯示提示字 (但保留游標)
+            if (val === '') {
+                displayEl.innerHTML = `<span class="cursor-blink"></span><span class="text-gray-300 ml-1">點擊下方按鈕</span>`;
+            } else {
+                displayEl.innerHTML = `${part1}<span class="cursor-blink"></span>${part2}`;
+            }
+        },
+
+        resetInput: () => {
+            app.state.inputFormula = "";
+            app.state.inputCursorPos = 0;
+            app.renderFormulaInput();
+        },
+
         inputChar: (char) => {
             if (app.state.role !== 'student') return;
-            const input = app.el('formula-input');
-            const start = input.selectionStart;
-            const end = input.selectionEnd;
-            const value = input.value;
-
-            // 在游標處插入
-            input.value = value.substring(0, start) + char + value.substring(end);
+            const val = app.state.inputFormula;
+            const pos = app.state.inputCursorPos;
             
-            // 移動游標到插入字元後
-            const newPos = start + String(char).length;
-            input.setSelectionRange(newPos, newPos);
-            input.focus();
+            app.state.inputFormula = val.substring(0, pos) + char + val.substring(pos);
+            app.state.inputCursorPos = pos + String(char).length;
+            app.renderFormulaInput();
         },
 
         backspace: () => {
-             const input = app.el('formula-input');
-             const start = input.selectionStart;
-             const end = input.selectionEnd;
-             const value = input.value;
-             
-             if (start === end && start > 0) {
-                 input.value = value.substring(0, start - 1) + value.substring(end);
-                 input.setSelectionRange(start - 1, start - 1);
-             } else if (start !== end) {
-                 input.value = value.substring(0, start) + value.substring(end);
-                 input.setSelectionRange(start, start);
+             const val = app.state.inputFormula;
+             const pos = app.state.inputCursorPos;
+             if (pos > 0) {
+                 app.state.inputFormula = val.substring(0, pos - 1) + val.substring(pos);
+                 app.state.inputCursorPos = pos - 1;
              }
-             input.focus();
+             app.renderFormulaInput();
         },
 
         moveCursor: (direction) => {
-            const input = app.el('formula-input');
-            const currentPos = input.selectionStart;
-            const newPos = direction === -1 ? Math.max(0, currentPos - 1) : Math.min(input.value.length, currentPos + 1);
-            input.setSelectionRange(newPos, newPos);
-            input.focus();
+            const pos = app.state.inputCursorPos;
+            const len = app.state.inputFormula.length;
+            app.state.inputCursorPos = direction === -1 ? Math.max(0, pos - 1) : Math.min(len, pos + 1);
+            app.renderFormulaInput();
         },
 
-      /* --- 學生解題與同步倒數邏輯 (含 v3.0.4 死局檢查) --- */
         submitAnswer: () => {
             const idx = app.state.selectedCardIndex;
             if (idx === null) return app.toast('⚠️ 請先點擊金字塔上的數字！');
@@ -860,7 +1138,7 @@
             const card = app.state.gameData.pyramid[idx];
             if (!card || card.isTaken) return app.toast('🚫 晚了一步！這張牌已經被拿走了。');
             
-            const formula = app.el('formula-input').value;
+            const formula = app.state.inputFormula; // 使用 state
             const diceNums = [app.state.dice.d8, app.state.dice.d10, app.state.dice.d12].sort((a,b)=>a-b);
             const formulaNums = (formula.match(/\d+/g) || []).map(Number).sort((a,b)=>a-b);
             
@@ -870,155 +1148,87 @@
 
             try {
                 const cleanFormula = formula.replace(/[^-()\d/*+.]/g, '');
+                // 安全性檢查
+                if (/[^0-9+\-*/(). ]/.test(cleanFormula)) throw new Error('Invalid characters');
+                
                 const result = new Function(`return ${cleanFormula}`)();
                 
                 if (Math.abs(result - card.number) < 0.001) {
-                    // --- 答對了！啟動 Firebase 同步更新 ---
                     const updates = {};
-                    
-                    // 1. 標記卡片已被拿走
                     updates[`pyramid/${idx}/isTaken`] = true;
                     
-                    // 2. 加分
                     const scorePath = `players/${app.state.myTeam}/${app.state.myName}/score`;
-                    const currentScore = (app.state.gameData.players[app.state.myTeam][app.state.myName].score || 0);
+                    const currentScore = (app.state.gameData.players?.[app.state.myTeam]?.[app.state.myName]?.score || 0);
                     updates[scorePath] = currentScore + card.points;
                     
-                    // 3. 處理倒數計時與死局檢查
                     if (!app.state.gameData.timerActive) {
                         updates['timerActive'] = true;
                         updates['timer'] = 30;
-                        app.speak("破解成功！啟動最後 30 秒撤退時間！");
+                        app.speak("破解成功！啟動撤退時間！");
                     } else {
-                        app.speak("漂亮！再拿下一張牌！");
+                        app.speak("漂亮！再拿一張！");
                     }
                     
-                    // v3.0.4: 檢查拿走這張牌後，場上剩下的牌是否還有解？
-                    // 建立一個模擬的金字塔狀態 (將當前卡片設為 taken)
+                    // 檢查剩餘解
                     const tempPyramid = [...app.state.gameData.pyramid];
                     tempPyramid[idx] = {...card, isTaken: true};
-                    
-                    // 檢查剩下的有效卡片
-                    const remainingTargets = tempPyramid
-                        .filter(c => c && !c.isTaken)
-                        .map(c => c.number);
-                    
-                    let hasRemainingSolution = false;
+                    const remainingTargets = tempPyramid.filter(c => c && !c.isTaken).map(c => c.number);
                     const currentDice = [app.state.dice.d8, app.state.dice.d10, app.state.dice.d12];
                     
-                    // 使用 app.findSolution 檢查剩餘目標
-                    // 注意：這裡我們需要傳入特定目標列表給 findSolution，但原本函式設計是讀取 state
-                    // 為了簡便，我們直接在這裡做一個簡單迴圈呼叫 findSolution
-                    // 由於 findSolution 預設讀取 app.state.gameData，我們暫時無法傳入模擬資料
-                    // 因此我們稍微修改策略：先更新 Firebase，如果之後發現無解，由各個客戶端的 updateUI 或 timer 處理？
-                    // 不，最好是寫入一個狀態。
-                    
-                    // 修正策略：直接遍歷 remainingTargets，如果 findSolution(dice, target) 回傳 true 則代表還有救
+                    let hasRemainingSolution = false;
                     for (let target of remainingTargets) {
-                        if (app.findSolution(currentDice, target)) {
-                            hasRemainingSolution = true;
-                            break;
-                        }
+                        if (app.findSolution(currentDice, target)) { hasRemainingSolution = true; break; }
                     }
 
                     if (!hasRemainingSolution && remainingTargets.length > 0) {
-                        // 如果還有牌但無解了，通知大家
-                        // 雖然 Firebase update 是非同步的，但我們可以預測結果
-                        setTimeout(() => {
+                         setTimeout(() => {
                              app.toast("⚠️ 警告：場上已無可解數字！");
-                             // 這裡可以選擇是否直接強制下一局，或者讓倒數跑完
-                             // 依照 v2.1 規則，應該提示並換局。但為了避免衝突，我們讓老師端去觸發，或者這裡直接觸發 forceNextRound
-                             // 為了安全，我們這裡只做提示，讓倒數計時器跑完自動換局，或是等待老師按下一局
-                             // 或者是寫入一個 status 讓老師端監聽。
-                             // 最簡單作法：直接呼叫 forceNextRound (因為所有客戶端都有權限寫入 classes/id)
                              app.forceNextRound();
-                        }, 2000); // 延遲 2 秒讓大家看到答對的訊息
+                        }, 2000);
                     }
 
                     db.ref(`classes/${app.state.classId}`).update(updates);
-                    
-                    // 清除學生本地狀態
-                    app.el('formula-input').value = '';
+                    app.resetInput();
                     app.state.selectedCardIndex = null;
                 } else {
-                    app.toast(`❌ 計算結果是 ${Math.round(result*100)/100}，不對喔！`);
+                    app.toast(`❌ 結果是 ${Math.round(result*100)/100}，不對喔！`);
                 }
             } catch (e) {
-                app.toast('❌ 公式寫錯囉，請檢查括號或符號。');
+                app.toast('❌ 公式錯誤，請檢查括號或符號。');
             }
         },
-        /* --- 學生解題與同步倒數邏輯結束 --- */
-        
-        handleCorrectAnswer: (points) => {
-            app.toast('🎉 答對了！加分！');
-            app.el('formula-input').value = '';
-            app.state.selectedCardIndex = null; // 重置選擇
-            
-            // 更新 Firebase
-            // 1. 移除卡片
-            const pyramidRef = db.ref(`classes/${app.state.classId}/pyramid/${app.state.selectedCardIndex}`);
-            pyramidRef.set(null); // 設為 null 代表拿走
-            
-            // 2. 加分
-            const scoreRef = db.ref(`classes/${app.state.classId}/players/${app.state.myTeam}/${app.state.myName}/score`);
-            scoreRef.transaction(currentScore => (currentScore || 0) + points);
-            
-            // 3. 觸發倒數 (如果尚未開始)
-            db.ref(`classes/${app.state.classId}`).update({ timerActive: true });
-        },
 
-        // --- 7. 輔助功能 ---
-        
-        // 時間到邏輯與新版提示
-      // 時間到邏輯
         handleTimeUp: () => {
             const modal = app.el('solution-modal');
             const hintText = app.el('solution-hint-text');
-            
-            const d8 = app.state.gameData.dice.d8;
-            const d10 = app.state.gameData.dice.d10;
-            const d12 = app.state.gameData.dice.d12;
-            
-            // v3.0.3: 這裡的 findSolution 已經會過濾掉已拿走的牌
+            const { d8, d10, d12 } = app.state.gameData.dice;
             const solution = app.findSolution([d8, d10, d12]);
             
             if (solution) {
                 const parts = solution.match(/(\d+\s*[\+\-\*\/]\s*\d+)/);
-                let hint = solution;
-                if (parts) hint = parts[0];
-                
-                hintText.textContent = `(${hint}) ... ?`;
+                hintText.textContent = parts ? `(${parts[0]}) ... ?` : solution;
                 modal.classList.remove('hidden');
-                app.speak("時間到，提示是 " + hint);
+                app.speak("時間到，提示是 " + (parts ? parts[0] : solution));
             } else {
                 hintText.textContent = "無解";
                 modal.classList.remove('hidden');
             }
 
-            // v3.0.3: 倒數結束後，若是老師身分，自動觸發下一回合
             if (app.state.role === 'teacher') {
                 setTimeout(() => {
-                    modal.classList.add('hidden'); // 關閉提示窗
-                    app.forceNextRound();          // 強制下一回合
-                }, 5000); // 給學生 5 秒鐘看提示
+                    modal.classList.add('hidden');
+                    app.forceNextRound();
+                }, 5000);
             }
         },
 
-        // 簡單遞迴解題
-       // 簡單遞迴解題
         findSolution: (nums, specificTarget = null) => {
              const ops = ['+', '-', '*', '/']; 
-             
-             // v3.0.3: 取得目標數字 (排除已拿走的卡片)
-             // 如果有指定 specificTarget (用於 teacherRollDice 檢查) 則只查該數字
-             // 否則查所有版面上剩餘的卡片
              let targets = [];
              if (specificTarget !== null) {
                  targets = [specificTarget];
              } else {
-                 targets = app.state.gameData.pyramid
-                    .filter(c => c && !c.isTaken)
-                    .map(c => c.number);
+                 targets = app.state.gameData.pyramid.filter(c => c && !c.isTaken).map(c => c.number);
              }
              
              function getPermutations(arr) { if (arr.length === 1) return [arr]; const perms = []; for (let i = 0; i < arr.length; i++) { const first = arr[i], rest = arr.slice(0, i).concat(arr.slice(i + 1)); getPermutations(rest).forEach(sub => perms.push([first, ...sub])); } return perms; }
@@ -1027,13 +1237,10 @@
                 const [a, b, c] = p;
                 for (const op1 of ops) for (const op2 of ops) {
                     try { 
-                        // (a op b) op c
                         let f1 = `(${a} ${op1} ${b}) ${op2} ${c}`;
                         let r1 = eval(f1);
-                        // 修正比較邏輯，避免浮點數誤差
                         if (targets.some(t => Math.abs(t - r1) < 0.001)) return f1;
                         
-                        // a op (b op c)
                         let f2 = `${a} ${op1} (${b} ${op2} ${c})`;
                         let r2 = eval(f2);
                         if (targets.some(t => Math.abs(t - r2) < 0.001)) return f2;
@@ -1054,7 +1261,6 @@
 
         speak: (text) => {
             if (app.state.role === 'teacher' && app.state.voiceEnabled && window.speechSynthesis) {
-                // 移除 emoji
                 const cleanText = text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
                 const u = new SpeechSynthesisUtterance(cleanText);
                 u.lang = 'zh-TW';
@@ -1067,12 +1273,10 @@
             app.el('voice-toggle-btn').textContent = app.state.voiceEnabled ? "🔊 語音開" : "🔇 語音關";
         },
 
-        // 產生初始金字塔資料 (與 v2 相同)
-        generatePredefinedCards: () => { /* 與 v2 相同，稍後呼叫 createPredefinedCards */ },
+        generatePredefinedCards: () => { /* 佔位符 */ },
+        createPredefinedCards: () => { /* 佔位符 */ },
         getCardColorClass: (c) => { return { black: 'bg-slate-900 text-white', red: 'bg-red-600 text-white', blue: 'bg-blue-600 text-white', yellow: 'bg-yellow-400 text-black' }[c] || 'bg-gray-200'; },
         
-      /* --- 固定牌庫與金字塔邏輯開始 --- */
-        // 洗牌函式
         shuffle: (array) => {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -1081,42 +1285,33 @@
             return array;
         },
 
-        // 取得 v2.1.0 固定牌庫並初始化物件
-       // 取得 v3.0.4 修正版固定牌庫 (符合 v2.1.0 規則)
         createFullDeck: () => {
             const data = {
-                black: { n: [49, 64, 84, 90], p: 6 }, // 4張
-                red: { n: [23, 26, 33, 44, 50, 54, 63, 70, 80], p: 4 }, // 9張
-                blue: { n: [19, 22, 25, 27, 28, 32, 35, 42, 45, 48, 56, 60, 72], p: 2 }, // 13張
-                yellow: { n: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 24, 30, 36, 40], p: 1 } // 22張
+                black: { n: [49, 64, 84, 90], p: 6 },
+                red: { n: [23, 26, 33, 44, 50, 54, 63, 70, 80], p: 4 },
+                blue: { n: [19, 22, 25, 27, 28, 32, 35, 42, 45, 48, 56, 60, 72], p: 2 },
+                yellow: { n: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 24, 30, 36, 40], p: 1 }
             };
             const decks = {};
             Object.keys(data).forEach(color => {
                 decks[color] = app.shuffle([...data[color].n]).map(num => ({
-                    number: num,
-                    color: color,
-                    points: data[color].p,
-                    isTaken: false
+                    number: num, color: color, points: data[color].p, isTaken: false
                 }));
             });
             return decks;
         },
 
-        // v3.0.2: 同時產生金字塔與剩餘牌庫
         generateInitialGameData: () => {
             const decks = app.createFullDeck();
             const pyramid = new Array(10);
             
-            // 依照 v2.1.0 結構填充：0(黑), 1-2(紅), 3-5(藍), 6-9(黃)
-            // 注意：pop() 會從牌庫移除該張牌，剩下的就是 remaining decks
             pyramid[0] = decks.black.pop();
             pyramid[1] = decks.red.pop(); pyramid[2] = decks.red.pop();
             pyramid[3] = decks.blue.pop(); pyramid[4] = decks.blue.pop(); pyramid[5] = decks.blue.pop();
             pyramid[6] = decks.yellow.pop(); pyramid[7] = decks.yellow.pop(); pyramid[8] = decks.yellow.pop(); pyramid[9] = decks.yellow.pop();
             
             return { pyramid, decks };
-        },
-        /* --- 固定牌庫與金字塔邏輯結束 --- */
+        }
     };
 
     // 啟動
