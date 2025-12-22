@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>法老密碼 v3.1.5 - 解密圖騰版</title>
+    <title>法老密碼 v3.2.0 - 解密道具版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -75,7 +75,17 @@
         /* 登入過場 */
         .fade-in { animation: fadeIn 0.5s ease-in; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
+/* --- v3.2.0 道具系統樣式 --- */
+        .item-slot { position: relative; cursor: pointer; transition: all 0.2s; }
+        .item-slot:hover { transform: scale(1.1); }
+        .item-icon { font-size: 2rem; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2)); }
+        .item-count { position: absolute; bottom: -5px; right: -5px; background: #dc2626; color: white; font-size: 0.7rem; font-weight: bold; width: 1.2rem; height: 1.2rem; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; }
+        .item-active { animation: pulse-gold 1.5s infinite; filter: drop-shadow(0 0 5px #fbbf24); }
+        @keyframes pulse-gold { 0% { transform: scale(1); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 10px #fbbf24); } 100% { transform: scale(1); } }
+        /* 老師發放道具按鈕 */
+        .grant-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.5rem; border-radius: 0.5rem; border: 2px solid #e5e7eb; transition: all 0.2s; }
+        .grant-btn:hover { background-color: #fffbeb; border-color: #d97706; transform: translateY(-2px); }
+        .grant-btn:active { transform: scale(0.95); }
         /* 學生組別按鈕 */
         .team-btn { transition: all 0.2s; }
         .team-btn.selected { ring: 4px; ring-color: #d97706; transform: scale(1.05); background-color: #fffbeb; }
@@ -143,7 +153,7 @@
 <body class="min-h-screen pb-12 text-slate-800">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="text-center mb-6 relative">
-            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.1.5</h1>
+            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.2.0</h1>
             <p class="text-lg text-amber-700 font-medium">連線版 - 古埃及數學試煉</p>
             <div id="connection-status" class="absolute top-0 right-0 text-xs font-mono text-gray-400">連線中...</div>
         </div>
@@ -237,7 +247,7 @@
                     <div id="panel-teacher" class="hidden bg-white rounded-2xl p-4 shadow-lg border-2 border-amber-600 h-full overflow-hidden">
                         <div class="teacher-panel-grid h-full">
                             <div class="flex flex-col h-full overflow-y-auto pr-1">
-                                <h3 class="text-xl font-bold text-amber-900 mb-4 border-b pb-2 sticky top-0 bg-white z-10">🎮 法老控場</h3>
+                                <h3 class="text-xl font-bold text-amber-900 mb-4 border-b pb-2 sticky top-0 bg-white z-10">🧙 法老王試煉</h3>
                                 
                                 <div class="flex justify-center gap-2 mb-4 p-3 bg-amber-50 rounded-xl">
                                     <div id="t-dice-8" class="w-14 h-14 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-2xl font-black shadow">-</div>
@@ -269,8 +279,13 @@
                         </div>
                     </div>
 
-                    <div id="panel-student" class="hidden flex flex-col h-full gap-3">
+                   <div id="panel-student" class="hidden flex flex-col h-full gap-3">
                         
+                        <div id="student-inventory" class="hidden flex items-center justify-between bg-amber-100/50 p-2 rounded-lg border border-amber-200 mx-2">
+                            <span class="text-xs font-bold text-amber-800 mr-2">🎒 背包:</span>
+                            <div id="inventory-list" class="flex gap-3 flex-1 justify-end"></div>
+                        </div>
+
                         <div class="flex flex-col md:flex-row gap-2 px-2 mb-2">
                             <div id="student-my-score-pill" class="student-score-pill w-full md:w-auto justify-center">👤 載入中...</div>
                             <div id="student-team-score-pill" class="student-score-pill w-full md:w-auto justify-center">🚩 載入中...</div>
@@ -640,7 +655,10 @@
             }
             
             app.calculateAndRenderScores(data.players);
-
+// v3.2.0: 更新學生背包顯示
+            if (app.state.role === 'student') {
+                app.renderStudentInventory(data.players);
+            }
             // v3.0.9: 遊戲結束時，自動彈出結算畫面
             if (data.status === 'ended') {
                 app.renderGameOverStats(data.players);
@@ -801,7 +819,7 @@
             app.el('end-player-ranks').innerHTML = playerHtml;
         },
 
-        showTeamModal: (teamKey) => {
+       showTeamModal: (teamKey) => {
             if (!app.state.latestTeamStats) return;
             const team = app.state.latestTeamStats[teamKey];
             if (!team) return;
@@ -812,15 +830,48 @@
             // 排序組員分數
             team.members.sort((a, b) => b.score - a.score);
             
-            let html = '';
+            // v3.2.0 修改：加入道具發放面板 (僅老師可見)
+            let html = '<div class="mb-4 grid grid-cols-2 gap-2 bg-amber-50 p-3 rounded-xl border border-amber-200">';
+            html += `<button onclick="app.grantItem('${teamKey}', 'hint')" class="grant-btn"><span class="text-2xl mb-1">📜</span><span class="text-xs font-bold text-amber-900">發送提示卡</span></button>`;
+            html += `<button onclick="app.grantItem('${teamKey}', 'double')" class="grant-btn"><span class="text-2xl mb-1">🪲</span><span class="text-xs font-bold text-amber-900">發送聖甲蟲</span></button>`;
+            html += '</div><div class="text-xs text-gray-500 mb-2 font-bold">組員列表：</div>';
+
             team.members.forEach(m => {
-                html += `<div class="team-detail-row"><span class="font-bold text-gray-700">${m.name}</span><span class="font-bold text-amber-600">${m.score}分</span></div>`;
+                // 顯示該組員是否持有道具
+                let itemsBadge = '';
+                if (m.items) {
+                    if (m.items.hint) itemsBadge += '📜';
+                    if (m.items.double) itemsBadge += '🪲';
+                }
+                html += `<div class="team-detail-row items-center"><span class="font-bold text-gray-700">${m.name} <span class="text-xs">${itemsBadge}</span></span><span class="font-bold text-amber-600">${m.score}分</span></div>`;
             });
             
-            if (team.members.length === 0) html = '<div class="text-center text-gray-400 py-4">目前沒有組員</div>';
+            if (team.members.length === 0) html += '<div class="text-center text-gray-400 py-4">目前沒有組員</div>';
             
             listEl.innerHTML = html;
             app.el('team-modal').classList.remove('hidden');
+        },
+
+        // v3.2.0 新增：發放道具邏輯
+        grantItem: (teamKey, type) => {
+             const team = app.state.latestTeamStats[teamKey];
+             if (!team || team.members.length === 0) return app.toast('❌ 該組沒有成員');
+
+             // 隨機選一位幸運兒 (或是發給分數最低的，這裡採隨機以增加趣味)
+             const luckyMember = team.members[Math.floor(Math.random() * team.members.length)];
+             
+             // 寫入資料庫
+             const itemRef = db.ref(`classes/${app.state.classId}/players/${teamKey}/${luckyMember.name}/items/${type}`);
+             // 使用 transaction 增加數量
+             itemRef.transaction((currentCount) => {
+                 return (currentCount || 0) + 1;
+             }, (error, committed) => {
+                 if (committed) {
+                     const itemName = type === 'hint' ? '📜 古老提示卡' : '🪲 聖甲蟲祝福';
+                     app.toast(`🎁 已賜予 ${luckyMember.name}：${itemName}`);
+                     app.el('team-modal').classList.add('hidden'); // 關閉視窗
+                 }
+             });
         },
 
         updateDiceUI: (dice) => {
@@ -964,7 +1015,7 @@
             });
 
             // 建立簡易 HTML 報表
-            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>法老密碼戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.1.5 系統自動生成</p></body></html>`;
+            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>法老密碼戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.2.0 系統自動生成</p></body></html>`;
 
             const blob = new Blob([reportHTML], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
@@ -1134,14 +1185,14 @@
             app.renderFormulaInput();
         },
 
-        submitAnswer: () => {
+       submitAnswer: () => {
             const idx = app.state.selectedCardIndex;
             if (idx === null) return app.toast('⚠️ 請先點擊金字塔上的數字！');
             
             const card = app.state.gameData.pyramid[idx];
             if (!card || card.isTaken) return app.toast('🚫 晚了一步！這張牌已經被拿走了。');
             
-            const formula = app.state.inputFormula; // 使用 state
+            const formula = app.state.inputFormula;
             const diceNums = [app.state.dice.d8, app.state.dice.d10, app.state.dice.d12].sort((a,b)=>a-b);
             const formulaNums = (formula.match(/\d+/g) || []).map(Number).sort((a,b)=>a-b);
             
@@ -1151,28 +1202,44 @@
 
             try {
                 const cleanFormula = formula.replace(/[^-()\d/*+.]/g, '');
-                // 安全性檢查
                 if (/[^0-9+\-*/(). ]/.test(cleanFormula)) throw new Error('Invalid characters');
                 
                 const result = new Function(`return ${cleanFormula}`)();
                 
                 if (Math.abs(result - card.number) < 0.001) {
+                    // --- 驗證成功 ---
                     const updates = {};
                     updates[`pyramid/${idx}/isTaken`] = true;
                     
+                    // 計算分數 (檢查是否有聖甲蟲加持)
+                    let points = card.points;
+                    let successMsg = "破解成功！";
+
+                    if (app.state.activeItem === 'double') {
+                        points *= 2;
+                        successMsg = "🪲 聖甲蟲發威！分數雙倍！";
+                        
+                        // 扣除道具
+                        const itemRef = db.ref(`classes/${app.state.classId}/players/${app.state.myTeam}/${app.state.myName}/items/double`);
+                        itemRef.transaction(count => Math.max(0, (count || 0) - 1));
+                        
+                        // 關閉狀態
+                        app.state.activeItem = null;
+                    }
+
                     const scorePath = `players/${app.state.myTeam}/${app.state.myName}/score`;
                     const currentScore = (app.state.gameData.players?.[app.state.myTeam]?.[app.state.myName]?.score || 0);
-                    updates[scorePath] = currentScore + card.points;
+                    updates[scorePath] = currentScore + points;
                     
                     if (!app.state.gameData.timerActive) {
                         updates['timerActive'] = true;
                         updates['timer'] = 30;
-                        app.speak("破解成功！啟動撤退時間！");
+                        app.speak(successMsg + " 啟動撤退時間！");
                     } else {
-                        app.speak("漂亮！再拿一張！");
+                        app.speak(successMsg + " 再拿一張！");
                     }
                     
-                    // 檢查剩餘解
+                    // 檢查剩餘解 (防死局)
                     const tempPyramid = [...app.state.gameData.pyramid];
                     tempPyramid[idx] = {...card, isTaken: true};
                     const remainingTargets = tempPyramid.filter(c => c && !c.isTaken).map(c => c.number);
@@ -1307,7 +1374,75 @@
             });
             return decks;
         },
+// v3.2.0 新增：渲染學生背包 (嚴格去除空白)
+        renderStudentInventory: (players) => {
+            if (!app.state.myTeam || !app.state.myName || !players) return;
+            const myData = players[app.state.myTeam]?.[app.state.myName];
+            const items = myData?.items || {};
+            const invEl = app.el('student-inventory');
+            const listEl = app.el('inventory-list');
+            
+            // 檢查是否有任何道具
+            const hasItems = (items.hint > 0) || (items.double > 0);
+            if (!hasItems) {
+                invEl.classList.add('hidden');
+                return;
+            }
+            invEl.classList.remove('hidden');
 
+            let html = '';
+            // 渲染提示卡
+            if (items.hint > 0) {
+                html += `<div onclick="app.useItem('hint')" class="item-slot group relative" title="點擊使用提示卡"><div class="item-icon">📜</div><div class="item-count">${items.hint}</div></div>`;
+            }
+            // 渲染雙倍卡 (點擊切換啟動狀態)
+            if (items.double > 0) {
+                const isActive = app.state.activeItem === 'double';
+                const activeClass = isActive ? 'item-active' : 'opacity-80 hover:opacity-100';
+                html += `<div onclick="app.useItem('double')" class="item-slot ${activeClass}" title="點擊啟動雙倍分數"><div class="item-icon">🪲</div><div class="item-count">${items.double}</div></div>`;
+            }
+            listEl.innerHTML = html;
+        },
+
+        // v3.2.0 新增：使用道具
+        useItem: (type) => {
+            if (app.state.gameData.status !== 'playing') return app.toast('✋ 遊戲尚未開始');
+
+            if (type === 'hint') {
+                if (!confirm('📜 確定要消耗一張「提示卡」來獲得運算提示嗎？')) return;
+                
+                const { d8, d10, d12 } = app.state.gameData.dice;
+                const solution = app.findSolution([d8, d10, d12]);
+                
+                if (solution) {
+                    // 扣除道具
+                    const ref = db.ref(`classes/${app.state.classId}/players/${app.state.myTeam}/${app.state.myName}/items/hint`);
+                    ref.transaction(count => (count || 0) - 1);
+
+                    // 顯示提示 (解析前兩個數字運算)
+                    // 例如 (8 + 5) * 2，抓取 (8 + 5)
+                    const match = solution.match(/(\(\d+\s*[\+\-\*\/]\s*\d+\)|\d+\s*[\+\-\*\/]\s*\d+)/); 
+                    let hint = match ? match[0] : solution;
+                    
+                    app.speak("提示卡已使用");
+                    alert(`💡 古老的聲音在你耳邊低語...\n\n試試看先算： ${hint}`);
+                } else {
+                    app.toast('⚠️ 當前骰子似乎無解，建議不要浪費卡片');
+                }
+            } 
+            else if (type === 'double') {
+                // 切換啟動狀態
+                if (app.state.activeItem === 'double') {
+                    app.state.activeItem = null;
+                    app.toast('🪲 聖甲蟲已收回');
+                } else {
+                    app.state.activeItem = 'double';
+                    app.toast('🪲 聖甲蟲加持中！下一題答對分數加倍！');
+                }
+                // 重新渲染以更新特效
+                app.renderStudentInventory(app.state.gameData.players);
+            }
+        },
         generateInitialGameData: () => {
             const decks = app.createFullDeck();
             const pyramid = new Array(10);
