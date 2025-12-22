@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>法老密碼 v3.1.4 - 解密圖騰版</title>
+    <title>法老密碼 v3.1.5 - 解密圖騰版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -143,7 +143,7 @@
 <body class="min-h-screen pb-12 text-slate-800">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="text-center mb-6 relative">
-            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.1.3</h1>
+            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.1.5</h1>
             <p class="text-lg text-amber-700 font-medium">連線版 - 古埃及數學試煉</p>
             <div id="connection-status" class="absolute top-0 right-0 text-xs font-mono text-gray-400">連線中...</div>
         </div>
@@ -363,7 +363,17 @@
                 <button onclick="document.getElementById('solution-modal').classList.add('hidden')" class="bg-amber-700 text-white px-6 py-2 rounded-lg font-bold">我知道了</button>
              </div>
         </div>
-
+<div id="reset-overlay" class="fixed inset-0 z-[70] hidden flex flex-col items-center justify-center bg-slate-900/95 text-white animate-[fadeIn_0.5s_ease-out]">
+            <div class="text-6xl mb-6 animate-bounce">🏺</div>
+            <h2 class="text-3xl md:text-5xl font-black mb-4 text-amber-400 tracking-widest">冒險已重置</h2>
+            <p class="text-xl text-gray-300 mb-12">法老王已開啟新的篇章</p>
+            <button onclick="app.logout()" class="group relative px-8 py-4 bg-transparent overflow-hidden rounded-full transition-all hover:scale-105">
+                <div class="absolute inset-0 w-full h-full bg-gradient-to-r from-amber-500 to-amber-700 opacity-90 group-hover:opacity-100 transition-opacity"></div>
+                <div class="relative flex items-center gap-3">
+                    <span class="text-2xl font-bold text-white shadow-sm">🔙 回到初始之地</span>
+                </div>
+            </button>
+        </div>
     </div>
 	<script>
     // --- Firebase 配置 ---
@@ -570,19 +580,23 @@
             }
         },
 
-       listenToGameData: () => {
+      listenToGameData: () => {
             const classRef = db.ref(`classes/${app.state.classId}`);
             
             classRef.on('value', snapshot => {
                 const data = snapshot.val();
                 
-               // [v3.1.2] 偵測到房間被重置或刪除 -> 強制登出
-                if (!data || data.status === 'restarting') {
-                    // 如果我是正在執行重置的老師,請忽略這個訊號,等待 resetGame 函式完成
-                    if (app.state.isResetting) return;
-
-                    app.toast('⚠️ 房間已重置,正在登出...');
-                    setTimeout(() => app.logout(), 2000); // 給予稍微充裕的時間看提示
+                // [v3.1.5] 修正：偵測到房間被重置 -> 顯示「回到初始之地」遮罩
+                if (!data || data.status === 'restarting' || data.status === 'reset_completed') {
+                    // 隱藏遊戲介面，顯示重置遮罩
+                    app.el('game-board').classList.add('hidden');
+                    app.el('game-over-modal').classList.add('hidden');
+                    app.el('reset-overlay').classList.remove('hidden');
+                    
+                    // 如果我是正在操作重置的老師，就不跳出 Toast 了
+                    if (!app.state.isResetting) {
+                        // 這裡不自動 logout，而是等待使用者點擊按鈕
+                    }
                     return;
                 }
 
@@ -950,7 +964,7 @@
             });
 
             // 建立簡易 HTML 報表
-            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>法老密碼戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.1.3 系統自動生成</p></body></html>`;
+            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>法老密碼戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.1.5 系統自動生成</p></body></html>`;
 
             const blob = new Blob([reportHTML], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
@@ -964,30 +978,23 @@
         },
 
        // [v3.1.2] 優化後的重置邏輯：使用 Promise 避免阻塞主執行緒
+       // [v3.1.5] 優化後的重置邏輯：設定狀態讓所有人看到「回到初始之地」按鈕
         resetGame: async () => {
-             if(!confirm('⚠️ 確定要開啟新的一局嗎？\n\n1. 所有學生的分數將被清空。\n2. 所有人都會被強制登出。\n3. 請確認已下載戰績表。')) {
-                 return; // 使用者取消
+             if(!confirm('⚠️ 確定要開啟新的一局嗎？\n\n1. 所有分數將歸零。\n2. 所有人將看到「回到初始之地」按鈕。\n3. 請確認已下載戰績表。')) {
+                 return;
              }
 
              try {
                  app.el('game-over-modal').classList.add('hidden');
-                 
-                 // 1. 標記自己正在重置，防止被 listenToGameData 搶先登出
-                 app.state.isResetting = true;
+                 app.state.isResetting = true; // 標記自己，避免畫面閃爍
 
-                 // 2. 通知所有學生端重置 (學生收到 restarting 會自動登出)
-                 await db.ref(`classes/${app.state.classId}`).update({ status: 'restarting' });
-                 app.toast('🔄 正在重置遊戲並登出所有人...');
-
-                 // 3. 使用 Promise 等待 3 秒 (非阻塞)
-                 await new Promise(resolve => setTimeout(resolve, 3000));
-                 
-                 // 4. 產生新的遊戲資料
+                 // 1. 產生新的遊戲初始資料
                  const initialData = app.generateInitialGameData();
                  
-                 // 5. 直接覆寫整個班級資料 (原子操作)
+                 // 2. 設定資料庫狀態為 reset_completed，並重置所有資料
+                 // 這樣所有客戶端收到通知後，就會顯示全螢幕的按鈕
                  await db.ref(`classes/${app.state.classId}`).set({
-                    status: 'waiting', 
+                    status: 'reset_completed', 
                     dice: { d8: '-', d10: '-', d12: '-' },
                     round: 1,
                     timer: 30,
@@ -997,13 +1004,14 @@
                     timestamp: firebase.database.ServerValue.TIMESTAMP
                  });
                  
-                 // 6. 資料庫重置完成，老師最後執行登出
-                 app.logout();
+                 app.toast('🔄 遊戲已重置，等待冒險者回歸...');
+                 
+                 // 老師自己也顯示該遮罩 (由 listenToGameData 處理)
                  
              } catch (err) {
                  console.error("Reset failed:", err);
                  alert('重置過程發生錯誤，請手動重新整理頁面。');
-                 app.logout();
+                 location.reload();
              }
         },
         
@@ -1060,12 +1068,7 @@
             }
         },
         
-        resetGame: () => {
-             if(confirm('⚠️ 確定要開啟新的一局嗎？\n這將會清除所有分數與進度！')) {
-                 app.el('game-over-modal').classList.add('hidden'); // 關閉彈窗
-                 app.createClass(); // 重新初始化資料
-             }
-        },
+        
 
         getTeamName: (key) => {
             const map = {
@@ -1199,25 +1202,24 @@
         },
 
         handleTimeUp: () => {
-            const modal = app.el('solution-modal');
-            const hintText = app.el('solution-hint-text');
+            // v3.1.5 修正：時間到只做語音提示，不自動彈出視窗干擾學生輸入
+            // 視窗改由老師手動點擊「🔮 提示」按鈕觸發
             const { d8, d10, d12 } = app.state.gameData.dice;
             const solution = app.findSolution([d8, d10, d12]);
             
             if (solution) {
-                const parts = solution.match(/(\d+\s*[\+\-\*\/]\s*\d+)/);
-                hintText.textContent = parts ? `(${parts[0]}) ... ?` : solution;
-                modal.classList.remove('hidden');
-                app.speak("時間到，提示是 " + (parts ? parts[0] : solution));
+                app.speak("時間到！請老師決定是否給予提示。");
             } else {
-                hintText.textContent = "無解";
-                modal.classList.remove('hidden');
+                app.speak("時間到，此局無解。");
             }
 
+            // 老師端自動觸發下一局的倒數計時不變
             if (app.state.role === 'teacher') {
+                // 這裡可以選擇是否要自動跳下一局，目前保留倒數後自動跳
+                // 若不想自動跳，可註解掉下面這行
                 setTimeout(() => {
-                    modal.classList.add('hidden');
-                    app.forceNextRound();
+                    // 再次確認狀態以免誤觸
+                    if(app.state.gameData.timer === 0) app.forceNextRound();
                 }, 5000);
             }
         },
@@ -1255,12 +1257,17 @@
             el.textContent = msg;
             el.style.opacity = '1';
             el.style.top = '100px';
-            setTimeout(() => { el.style.opacity = '0'; el.style.top = '20px'; }, 2000);
+            // 清除舊的 timer 以免閃爍
+            if(app.state.toastTimer) clearTimeout(app.state.toastTimer);
+            app.state.toastTimer = setTimeout(() => { el.style.opacity = '0'; el.style.top = '20px'; }, 2000);
             app.speak(msg);
         },
 
         speak: (text) => {
             if (app.state.role === 'teacher' && app.state.voiceEnabled && window.speechSynthesis) {
+                // v3.1.5 修正：強制中斷上一句，避免語音重疊
+                window.speechSynthesis.cancel();
+                
                 const cleanText = text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
                 const u = new SpeechSynthesisUtterance(cleanText);
                 u.lang = 'zh-TW';
