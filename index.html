@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>法老密碼 v3.2.3 - 解密道具版</title>
+    <title>法老密碼 v3.2.4 - 訊息提示版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -153,7 +153,7 @@
 <body class="min-h-screen pb-12 text-slate-800">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="text-center mb-6 relative">
-            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.2.3</h1>
+            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.2.4</h1>
             <p class="text-lg text-amber-700 font-medium">連線版 - 古埃及數學試煉</p>
             <div id="connection-status" class="absolute top-0 right-0 text-xs font-mono text-gray-400">連線中...</div>
         </div>
@@ -419,13 +419,14 @@
             myName: null,
             gameData: {},
             cards: {}, 
-            voiceEnabled: false,
+            voiceEnabled: true, // v3.2.4 修改：預設開啟語音
             localTimer: null,
             selectedCardIndex: null,
             // v3.0.8 新增: 輸入狀態管理
             inputFormula: "", 
             inputCursorPos: 0,
             lastRoundProcessed: 0,
+            lastStatus: null, // v3.2.4 新增：用於偵測狀態改變以觸發語音
             isResetting: false // v3.1.2 新增：防止老師重置時自我登出
         },
 
@@ -638,10 +639,20 @@
             });
         },
 
-        updateUI: (data) => {
+       updateUI: (data) => {
             const statusEl = app.el('game-status-text');
             const statusBox = statusEl.parentElement;
             
+            // v3.2.4 優化：狀態改變時的同步語音與提示邏輯
+            if (app.state.lastStatus !== data.status) {
+                app.state.lastStatus = data.status;
+                if (data.status === 'dead_end') {
+                    const msg = "⚠️ 此局無解！5秒後重新開始...";
+                    app.toast(msg);
+                    // 確保語音不重複觸發
+                }
+            }
+
             statusBox.className = "bg-amber-100 rounded-2xl p-4 shadow-inner text-center relative border-2 border-amber-300 transition-colors duration-300";
             statusEl.className = "text-xl font-bold text-amber-800";
             
@@ -649,9 +660,16 @@
                 'waiting': '等待法老王開啟試煉...',
                 'rolling': '🎲 命運之骰轉動中...',
                 'playing': '✨ 試煉進行中 - 破解圖騰！',
+                'dead_end': '⚠️ 此局無解！準備重新開始...', // v3.2.4 新增狀態
                 'ended': '🏁 冒險結束 - 統計戰果'
             };
             statusEl.textContent = statusMap[data.status] || data.status;
+
+            // 特殊狀態樣式
+            if (data.status === 'dead_end') {
+                statusBox.className = "bg-red-100 rounded-2xl p-4 shadow-inner text-center relative border-2 border-red-400 animate-pulse";
+                statusEl.className = "text-xl font-black text-red-800";
+            }
 
             app.updateDiceUI(data.dice);
             app.renderPyramid(data.pyramid);
@@ -665,7 +683,7 @@
             }
             
             app.calculateAndRenderScores(data.players);
-// v3.2.0: 更新學生背包顯示
+            // v3.2.0: 更新學生背包顯示
             if (app.state.role === 'student') {
                 app.renderStudentInventory(data.players);
             }
@@ -697,7 +715,7 @@
                     btnRoll.textContent = (data.status === 'ended') ? "🏁 統計中" : ((data.status === 'rolling') ? "🎲 轉動中..." : "🔒 鎖定中");
                 }
                 
-                // 死局檢查 (僅在遊玩中)
+                // 死局檢查 (僅在遊玩中且非倒數狀態)
                 if (data.status === 'playing') {
                     const currentDice = [data.dice.d8, data.dice.d10, data.dice.d12];
                     const remainingTargets = data.pyramid
@@ -713,9 +731,16 @@
                             }
                         }
                         if (!hasSolution) {
-                            statusBox.className = "bg-yellow-400 rounded-2xl p-4 shadow-xl text-center relative border-4 border-black animate-pulse";
-                            statusEl.className = "text-2xl font-black text-black";
-                            statusEl.innerHTML = `⚠️ 警告：場上已無可解數字！<br><span class="text-base font-medium">請直接按「冒險結束」或「下一局」</span>`;
+                            // v3.2.5 修正：遊戲中途變無解，直接寫入資料庫，觸發全體廣播與倒數
+                            // 加上防止重複觸發的鎖：只有在狀態尚未變成 dead_end 時才執行
+                            if (app.state.lastStatus !== 'dead_end') {
+                                db.ref(`classes/${app.state.classId}`).update({
+                                    status: 'dead_end',
+                                    timerActive: false // 停止原本的倒數(如果有)
+                                });
+                                // 老師端負責在 5 秒後強制換局
+                                setTimeout(() => app.forceNextRound(), 5000);
+                            }
                         }
                     }
                 }
@@ -963,7 +988,7 @@
             }
         },
 
-       teacherRollDice: () => {
+      teacherRollDice: () => {
             if (app.state.gameData.status === 'rolling' || app.state.gameData.status === 'playing') return;
 
             db.ref(`classes/${app.state.classId}`).update({
@@ -992,10 +1017,17 @@
                 }
 
                 if (!hasSolution) {
-                    db.ref(`classes/${app.state.classId}/dice`).update({ d8, d10, d12 });
-                    app.speak(`擲出 ${d8}, ${d10}, ${d12}。此局無解！`);
-                    app.toast(`❌ 無法破解，3秒後換局...`);
-                    setTimeout(() => app.forceNextRound(), 3000);
+                    // v3.2.4: 發現無解，寫入資料庫 'dead_end' 狀態，讓學生端同步顯示與發聲
+                    db.ref(`classes/${app.state.classId}`).update({ 
+                        status: 'dead_end',
+                        dice: { d8, d10, d12 } 
+                    });
+                    
+                    const msg = `擲出 ${d8}, ${d10}, ${d12}。此局無解！5秒後重新開始`;
+                    if (app.state.voiceEnabled) app.speak(msg);
+                    
+                    // 老師端 5 秒後自動觸發下一局
+                    setTimeout(() => app.forceNextRound(), 5000);
                 } else {
                     db.ref(`classes/${app.state.classId}`).update({
                         status: 'playing',
@@ -1332,26 +1364,16 @@
             }
         },
 
-        handleTimeUp: () => {
-            // v3.1.5 修正：時間到只做語音提示，不自動彈出視窗干擾學生輸入
-            // 視窗改由老師手動點擊「🔮 提示」按鈕觸發
-            const { d8, d10, d12 } = app.state.gameData.dice;
-            const solution = app.findSolution([d8, d10, d12]);
+      handleTimeUp: () => {
+            // v3.2.4: 時間到，自動換下一局
+            if (app.state.voiceEnabled) app.speak("時間到！準備進入下一回合。");
             
-            if (solution) {
-                app.speak("時間到！請老師決定是否給予提示。");
-            } else {
-                app.speak("時間到，此局無解。");
-            }
-
-            // 老師端自動觸發下一局的倒數計時不變
+            // 老師端自動執行換局邏輯
             if (app.state.role === 'teacher') {
-                // 這裡可以選擇是否要自動跳下一局，目前保留倒數後自動跳
-                // 若不想自動跳，可註解掉下面這行
+                // 給予 2 秒緩衝讓語音播完
                 setTimeout(() => {
-                    // 再次確認狀態以免誤觸
-                    if(app.state.gameData.timer === 0) app.forceNextRound();
-                }, 5000);
+                    app.forceNextRound();
+                }, 2000);
             }
         },
 
