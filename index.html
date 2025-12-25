@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>法老密碼 v3.2.4 - 訊息提示版</title>
+    <title>法老密碼 v3.2.7 - 四則邏輯修改版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -153,7 +153,7 @@
 <body class="min-h-screen pb-12 text-slate-800">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="text-center mb-6 relative">
-            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.2.4</h1>
+            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.2.7</h1>
             <p class="text-lg text-amber-700 font-medium">連線版 - 古埃及數學試煉</p>
             <div id="connection-status" class="absolute top-0 right-0 text-xs font-mono text-gray-400">連線中...</div>
         </div>
@@ -313,8 +313,8 @@
                         <div class="grid grid-cols-4 gap-2 flex-grow">
                             <button onclick="app.inputChar('+')" class="cursor-control-btn bg-indigo-100 text-indigo-900 rounded-lg font-bold text-2xl shadow border-b-4 border-indigo-200">+</button>
                             <button onclick="app.inputChar('-')" class="cursor-control-btn bg-indigo-100 text-indigo-900 rounded-lg font-bold text-2xl shadow border-b-4 border-indigo-200">-</button>
-                            <button onclick="app.inputChar('*')" class="cursor-control-btn bg-indigo-100 text-indigo-900 rounded-lg font-bold text-2xl shadow border-b-4 border-indigo-200">×</button>
-                            <button onclick="app.inputChar('/')" class="cursor-control-btn bg-indigo-100 text-indigo-900 rounded-lg font-bold text-2xl shadow border-b-4 border-indigo-200">÷</button>
+                           <button onclick="app.inputChar('×')" class="cursor-control-btn bg-indigo-100 text-indigo-900 rounded-lg font-bold text-2xl shadow border-b-4 border-indigo-200">×</button>
+                           <button onclick="app.inputChar('÷')" class="cursor-control-btn bg-indigo-100 text-indigo-900 rounded-lg font-bold text-2xl shadow border-b-4 border-indigo-200">÷</button>
                             
                             <button onclick="app.inputChar('(')" class="cursor-control-btn bg-indigo-50 text-indigo-800 rounded-lg font-bold text-xl shadow border-b-4 border-indigo-200 col-span-2">(</button>
                             <button onclick="app.inputChar(')')" class="cursor-control-btn bg-indigo-50 text-indigo-800 rounded-lg font-bold text-xl shadow border-b-4 border-indigo-200 col-span-2">)</button>
@@ -427,6 +427,7 @@
             inputCursorPos: 0,
             lastRoundProcessed: 0,
             lastStatus: null, // v3.2.4 新增：用於偵測狀態改變以觸發語音
+            lastWinnerTime: 0, // v3.2.6 新增：用於判斷是否播放過廣播
             isResetting: false // v3.1.2 新增：防止老師重置時自我登出
         },
 
@@ -634,6 +635,22 @@
                     }
                 }
 
+                // v3.2.6 新增：老師端監聽贏家並廣播
+                if (app.state.role === 'teacher' && data.lastWinner && data.lastWinner.timestamp > app.state.lastWinnerTime) {
+                    // 更新本地紀錄的時間，避免重複播放
+                    app.state.lastWinnerTime = data.lastWinner.timestamp;
+                    
+                    // 只有當這個訊息是「新的」（例如現在發生的，而不是剛登入時載入的舊紀錄）才播放
+                    // 這裡做一個簡單判斷：如果距離現在超過 10 秒的舊資料就不念了（避免重整頁面時狂念）
+                    const now = Date.now();
+                    // 注意: firebase timestamp 是伺服器時間，與本地可能有誤差，但通常不會差太多
+                    // 如果 timestamp 是一個很大的數字才檢查
+                    if (now - data.lastWinner.timestamp < 10000) {
+                         app.speak(`恭喜${data.lastWinner.name}奪寶成功！`);
+                         app.toast(`🎉 恭喜 ${data.lastWinner.name} 奪寶成功！`);
+                    }
+                }
+
                 app.state.gameData = data;
                 app.updateUI(data);
             });
@@ -647,7 +664,7 @@
             if (app.state.lastStatus !== data.status) {
                 app.state.lastStatus = data.status;
                 if (data.status === 'dead_end') {
-                    const msg = "⚠️ 此局無解！5秒後重新開始...";
+                    const msg = "⚠️ 此局無解！4秒後重新開始...";
                     app.toast(msg);
                     // 確保語音不重複觸發
                 }
@@ -738,8 +755,8 @@
                                     status: 'dead_end',
                                     timerActive: false // 停止原本的倒數(如果有)
                                 });
-                                // 老師端負責在 5 秒後強制換局
-                                setTimeout(() => app.forceNextRound(), 5000);
+                                // 老師端負責在 4 秒後強制換局
+                                setTimeout(() => app.forceNextRound(), 4000);
                             }
                         }
                     }
@@ -893,19 +910,62 @@
         },
 
         // v3.2.0 新增：發放道具邏輯
-      // v3.3.1 修正：發放道具邏輯 (擴充顯示名稱)
+      // [修改 2] 權重型道具發送：分數低、道具少者優先
         grantItem: (teamKey, type) => {
              const team = app.state.latestTeamStats[teamKey];
              if (!team || team.members.length === 0) return app.toast('❌ 該組沒有成員');
 
-             const luckyMember = team.members[Math.floor(Math.random() * team.members.length)];
+             // --- 計算每位成員的中獎權重 ---
+             let candidates = team.members.map(member => {
+                 let weight = 10; // 基礎權重
+
+                 // 條件 A: 分數低或是尚未取得分數 (0分者權重 +100，分數低於平均者 +30)
+                 const score = member.score || 0;
+                 if (score === 0) {
+                     weight += 100;
+                 } else if (score < (team.score / team.members.length)) { 
+                     // 如果個人分數低於該組平均
+                     weight += 30;
+                 }
+
+                 // 計算該玩家目前擁有的道具總數
+                 const items = member.items || {};
+                 const totalItems = (items.hint||0) + (items.double||0) + (items.horus||0) + (items.nile||0);
+
+                 // 條件 B: 尚未獲得過道具 (道具總數為 0 者權重 +80)
+                 if (totalItems === 0) {
+                     weight += 80;
+                 }
+
+                 // 條件 C: 道具取得次數越少，機率越高 (每多一個道具，權重稍微扣減，但最低保留 5)
+                 // 例如：0道具(+0扣減), 1道具(-10), 2道具(-20)...
+                 weight -= (totalItems * 10);
+                 if (weight < 5) weight = 5; // 保底權重，避免變成 0 機率
+
+                 return { member: member, weight: weight };
+             });
+
+             // --- 加權隨機演算法 ---
+             const totalWeight = candidates.reduce((sum, c) => sum + c.weight, 0);
+             let randomValue = Math.random() * totalWeight;
+             let luckyMember = candidates[0].member;
+
+             for (let i = 0; i < candidates.length; i++) {
+                 randomValue -= candidates[i].weight;
+                 if (randomValue <= 0) {
+                     luckyMember = candidates[i].member;
+                     break;
+                 }
+             }
              
+             console.log(`道具發送：${luckyMember.name} (權重: ${candidates.find(c=>c.member===luckyMember).weight}/${totalWeight})`);
+
+             // --- 執行發送 (與原程式碼相同) ---
              const itemRef = db.ref(`classes/${app.state.classId}/players/${teamKey}/${luckyMember.name}/items/${type}`);
              itemRef.transaction((currentCount) => {
                  return (currentCount || 0) + 1;
              }, (error, committed) => {
                  if (committed) {
-                     // 修正顯示名稱錯誤的 Bug
                      const itemNames = {
                          hint: '📜 古老提示卡',
                          double: '🦂 聖甲蟲祝福',
@@ -914,7 +974,8 @@
                      };
                      const itemName = itemNames[type] || '🎁 神秘道具';
                      app.toast(`🎁 已賜予 ${luckyMember.name}：${itemName}`);
-                     app.el('team-modal').classList.add('hidden'); 
+                     // 這裡選擇不關閉視窗，讓老師可以連續發送
+                     // app.el('team-modal').classList.add('hidden'); 
                  }
              });
         },
@@ -978,12 +1039,18 @@
             const solution = app.findSolution([d8, d10, d12]);
             
             if (solution) {
-                const match = solution.match(/(\d+\s*[\+\-\*\/]\s*\d+)/);
-                let hint = match ? match[0] : solution;
-                app.el('solution-hint-text').textContent = `(${hint}) ... ?`;
-                app.el('solution-modal').classList.remove('hidden');
-                app.speak("法老王提示：" + hint);
-            } else {
+    const match = solution.match(/(\d+\s*[\+\-\*\/]\s*\d+)/);
+    let hint = match ? match[0] : solution;
+
+    // [修正] 視覺上顯示為 × 和 ÷
+    let displayHint = hint.replace(/\*/g, '×').replace(/\//g, '÷');
+
+    app.el('solution-hint-text').textContent = `(${displayHint}) ... ?`;
+    app.el('solution-modal').classList.remove('hidden');
+
+    // 語音部分由 speak 函式統一處理
+    app.speak("法老王提示：" + hint);
+} else {
                 app.toast("⚠️ 目前的骰子似乎無解...");
             }
         },
@@ -1023,11 +1090,11 @@
                         dice: { d8, d10, d12 } 
                     });
                     
-                    const msg = `擲出 ${d8}, ${d10}, ${d12}。此局無解！5秒後重新開始`;
+                    const msg = `擲出 ${d8}, ${d10}, ${d12}。此局無解！4秒後重新開始`;
                     if (app.state.voiceEnabled) app.speak(msg);
                     
-                    // 老師端 5 秒後自動觸發下一局
-                    setTimeout(() => app.forceNextRound(), 5000);
+                    // 老師端 4 秒後自動觸發下一局
+                    setTimeout(() => app.forceNextRound(), 4000);
                 } else {
                     db.ref(`classes/${app.state.classId}`).update({
                         status: 'playing',
@@ -1067,7 +1134,7 @@
             });
 
             // 建立簡易 HTML 報表
-            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>法老密碼戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.2.3 系統自動生成</p></body></html>`;
+            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>法老密碼戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.2.6 系統自動生成</p></body></html>`;
 
             const blob = new Blob([reportHTML], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
@@ -1239,6 +1306,7 @@
 
      // v3.3.0 更新：驗證邏輯 (支援荷魯斯之眼與尼羅河恩賜)
        // v3.3.1 更新：驗證邏輯 (修正尼羅河持續效果與荷魯斯消耗)
+      // v3.3.2 修正：強制骰子型別轉換，修復道具卡驗證錯誤與四則運算符號邏輯
         submitAnswer: () => {
             const idx = app.state.selectedCardIndex;
             if (idx === null) return app.toast('⚠️ 請先點擊金字塔上的數字！');
@@ -1247,21 +1315,30 @@
             if (!card || card.isTaken) return app.toast('🚫 晚了一步！這張牌已經被拿走了。');
             
             const formula = app.state.inputFormula;
-            const dice = app.state.dice;
-            const diceNums = [dice.d8, dice.d10, dice.d12].sort((a,b)=>a-b);
-            const formulaNums = (formula.match(/\d+/g) || []).map(Number).sort((a,b)=>a-b);
+            const rawDice = app.state.dice;
+            
+            // 【修正關鍵 1】強制將骰子點數轉為 Number 型別，避免與 Firebase 的 String 型別發生衝突
+            // 同時進行排序，確保比對時順序一致
+            const diceNums = [rawDice.d8, rawDice.d10, rawDice.d12]
+                             .map(n => Number(n)) 
+                             .sort((a,b) => a - b);
+            
+            // 【修正關鍵 2】解析公式中的數字時，確保不受 × ÷ 符號影響
+            const formulaNums = (formula.match(/\d+/g) || [])
+                                .map(Number)
+                                .sort((a,b) => a - b);
             
             const activeItem = app.state.activeItem;
-
-            // --- 步驟 1: 驗證數字使用規則 ---
             let isUsageValid = false;
 
+            // --- 步驟 1: 驗證數字使用規則 (道具邏輯修正) ---
             if (activeItem === 'nile') {
-                // 🌊 尼羅河恩賜
+                // 🌊 尼羅河恩賜：規則是「只需兩顆」，但也容許「使用三顆」的標準解法
                 if (formulaNums.length === 2) {
                     const tempDice = [...diceNums];
                     let matchCount = 0;
                     formulaNums.forEach(num => {
+                        // 使用 indexOf 尋找數字 (因為都轉為 Number 了，這裡會準確)
                         const foundIdx = tempDice.indexOf(num);
                         if (foundIdx !== -1) {
                             tempDice.splice(foundIdx, 1);
@@ -1270,32 +1347,47 @@
                     });
                     if (matchCount === 2) isUsageValid = true;
                 }
-                if (!isUsageValid) return app.toast('❌ 尼羅河規則：請輸入只包含「2顆」骰子數字的公式。');
+                // 如果玩家開了尼羅河但用了 3 顆骰子，我們也視為合法 (相容標準規則)
+                if (formulaNums.length === 3 && JSON.stringify(diceNums) === JSON.stringify(formulaNums)) {
+                    isUsageValid = true;
+                }
+                
+                if (!isUsageValid) return app.toast('❌ 尼羅河規則：請輸入包含「2顆」骰子數字的公式。');
 
             } else if (activeItem === 'horus') {
-                // 👁️ 荷魯斯之眼
+                // 👁️ 荷魯斯之眼：2顆原骰子 + 1顆變身數字(1~3)
                 if (formulaNums.length === 3) {
                     const tempDice = [...diceNums];
                     let matchCount = 0;
                     let wildcardUsed = false;
 
+                    // 先把跟骰子完全符合的數字扣掉
+                    const remainingFormulaNums = [];
                     formulaNums.forEach(num => {
                         const foundIdx = tempDice.indexOf(num);
                         if (foundIdx !== -1) {
-                            tempDice.splice(foundIdx, 1);
+                            tempDice.splice(foundIdx, 1); // 找到就移除，避免重複計算
                             matchCount++;
                         } else {
-                            if (!wildcardUsed && (num >= 1 && num <= 3)) {
-                                wildcardUsed = true;
-                            }
+                            remainingFormulaNums.push(num);
                         }
                     });
-                    if ((matchCount >= 2 && wildcardUsed) || matchCount === 3) isUsageValid = true;
+
+                    // 檢查剩下的那個數字是否為 1~3 (且要是原本骰子裡沒有的，或者是重複使用了變身後的數字)
+                    if (matchCount === 2 && remainingFormulaNums.length === 1) {
+                        const wildcard = remainingFormulaNums[0];
+                        if (wildcard >= 1 && wildcard <= 3) {
+                            isUsageValid = true;
+                        }
+                    }
+                    // 如果玩家開了荷魯斯但沒用變身功能 (直接用原本3顆)，也算過關
+                    if (matchCount === 3) isUsageValid = true;
                 }
                 if (!isUsageValid) return app.toast('❌ 荷魯斯規則：需用 2 顆原骰子 + 1 顆變身數字(1~3)。');
 
             } else {
-                // 🟢 預設規則
+                // 🟢 預設規則 (包含聖甲蟲 double)：必須完全用完 3 顆骰子
+                // 因為前面已經強制轉型 Number 且排序，這裡的 stringify 比對就會準確
                 if (JSON.stringify(diceNums) === JSON.stringify(formulaNums)) {
                     isUsageValid = true;
                 }
@@ -1304,39 +1396,53 @@
 
             // --- 步驟 2: 驗證運算結果 ---
             try {
-                const cleanFormula = formula.replace(/[^-()\d/*+.]/g, '');
-                if (/[^0-9+\-*/(). ]/.test(cleanFormula)) throw new Error('Invalid characters');
+                // 【修正關鍵 3】確保運算符號替換正確：將顯示用的 × ÷ 轉為運算用的 * /
+                const codeFormula = formula.replace(/×/g, '*').replace(/÷/g, '/');
+
+                // 安全過濾：只允許數字、運算符號和小數點
+                const cleanFormula = codeFormula.replace(/[^-()\d/*+.]/g, '');
                 
+                // 檢查是否包含非法字元或空字串
+                if (!cleanFormula || /[^0-9+\-*/(). ]/.test(cleanFormula)) {
+                    throw new Error('Invalid formula');
+                }
+
+                // 執行運算
                 const result = new Function(`return ${cleanFormula}`)();
                 
+                // 檢查結果 (容許極小的小數誤差)
                 if (Math.abs(result - card.number) < 0.001) {
                     // --- 驗證成功 ---
                     let points = card.points;
-                    let successMsg = "破解成功！";
+                    let playerName = app.state.myName;
+                    let successMsg = `恭喜冒險者${playerName}解謎成功！`;
                     let itemToConsume = null;
 
+                    // 道具結算邏輯
                     if (activeItem === 'double') {
                         points *= 2;
-                        successMsg = "🦂 聖甲蟲發威！分數雙倍！";
+                        successMsg = `恭喜${playerName}！聖甲蟲發威，分數雙倍！`;
                         itemToConsume = 'double';
-                        app.state.activeItem = null; // 聖甲蟲用完即停
+                        app.state.activeItem = null; // 消耗後重置
                     } else if (activeItem === 'horus') {
-                        successMsg = "👁️ 荷魯斯之力！破解成功！";
+                        successMsg = `恭喜${playerName}！荷魯斯之力破解成功！`;
                         itemToConsume = 'horus';
-                        app.state.activeItem = null; // 荷魯斯用完即停
+                        app.state.activeItem = null; 
                     } else if (activeItem === 'nile') {
-                        successMsg = "🌊 尼羅河的恩賜！運算成功！";
+                        successMsg = `恭喜${playerName}！尼羅河恩賜運算成功！`;
                         itemToConsume = 'nile';
-                        // 注意：尼羅河不設定為 null，讓它在本回合持續有效
+                        // 尼羅河通常是一回合效果，這裡選擇消耗一張
                     }
 
+                    // 扣除道具數量
                     if (itemToConsume) {
                         const itemRef = db.ref(`classes/${app.state.classId}/players/${app.state.myTeam}/${app.state.myName}/items/${itemToConsume}`);
                         itemRef.transaction(count => Math.max(0, (count || 0) - 1));
                     }
 
-                    // 重新渲染 UI 以更新道具顯示 (因為有些被設為 null 了)
+                    // 更新後端資料
                     app.renderStudentInventory(app.state.gameData.players);
+                    app.renderActiveItemStatus(); // 更新道具狀態欄
 
                     const updates = {};
                     updates[`pyramid/${idx}/isTaken`] = true;
@@ -1345,6 +1451,11 @@
                     const currentScore = (app.state.gameData.players?.[app.state.myTeam]?.[app.state.myName]?.score || 0);
                     updates[scorePath] = currentScore + points;
                     
+                    updates['lastWinner'] = {
+                        name: app.state.myName,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    };
+
                     if (!app.state.gameData.timerActive) {
                         updates['timerActive'] = true;
                         updates['timer'] = 30;
@@ -1357,10 +1468,13 @@
                     app.resetInput();
                     app.state.selectedCardIndex = null;
                 } else {
-                    app.toast(`❌ 結果是 ${Math.round(result*100)/100}，不對喔！`);
+                    // 四捨五入顯示結果
+                    const displayResult = Math.round(result * 100) / 100;
+                    app.toast(`❌ 計算結果是 ${displayResult}，目標是 ${card.number} 喔！`);
                 }
             } catch (e) {
-                app.toast('❌ 公式錯誤，請檢查括號或符號。');
+                console.error(e);
+                app.toast('❌ 公式錯誤，請檢查括號或運算符號。');
             }
         },
 
@@ -1417,16 +1531,28 @@
         },
 
         speak: (text) => {
-            if (app.state.role === 'teacher' && app.state.voiceEnabled && window.speechSynthesis) {
-                // v3.1.5 修正：強制中斷上一句，避免語音重疊
-                window.speechSynthesis.cancel();
-                
-                const cleanText = text.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
-                const u = new SpeechSynthesisUtterance(cleanText);
-                u.lang = 'zh-TW';
-                window.speechSynthesis.speak(u);
-            }
-        },
+    if (app.state.role === 'teacher' && app.state.voiceEnabled && window.speechSynthesis) {
+        // v3.1.5 修正：強制中斷上一句，避免語音重疊
+        window.speechSynthesis.cancel();
+
+        // [修正] 語音口語化轉換：將符號轉為中文
+        let spokenText = text
+            .replace(/\*/g, '乘以')   // 電腦符號 * -> 乘以
+            .replace(/\//g, '除以')   // 電腦符號 / -> 除以
+            .replace(/×/g, '乘以')    // 數學符號 × -> 乘以
+            .replace(/÷/g, '除以')    // 數學符號 ÷ -> 除以
+            .replace(/-/g, '減')      // 減號唸起來順一點
+            .replace(/\+/g, '加');    // 加號唸起來順一點
+
+        // 移除表情符號，避免語音引擎讀出亂碼
+        const cleanText = spokenText.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
+
+        const u = new SpeechSynthesisUtterance(cleanText);
+        u.lang = 'zh-TW';
+        u.rate = 0.9; // [建議] 稍微放慢語速，讓算式聽得更清楚
+        window.speechSynthesis.speak(u);
+    }
+},
         
         toggleVoice: () => {
             app.state.voiceEnabled = !app.state.voiceEnabled;
