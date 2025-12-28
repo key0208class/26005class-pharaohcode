@@ -1,2 +1,2 @@
 # 26005class-pharaohcode
-法老密碼線上互動版本 - Deployed by EZPage
+神殿試煉四則運算線上互動版本 - Deployed by EZPage
