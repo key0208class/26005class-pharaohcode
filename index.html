@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>法老密碼 v3.2.7 - 四則邏輯修改版</title>
+    <title>神殿試煉 v3.2.9 - 四則邏輯修改版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -71,6 +71,15 @@
 
         /* 隱藏原生鍵盤但保留游標 (透過 readonly 配合 JS) */
         .formula-input-readonly { caret-color: #d97706; cursor: text; }
+        
+        /* v3.2.9 新增：自動擲骰開關樣式 */
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; vertical-align: middle; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #d97706; }
+        input:focus + .slider { box-shadow: 0 0 1px #d97706; }
+        input:checked + .slider:before { transform: translateX(24px); }
         
         /* 登入過場 */
         .fade-in { animation: fadeIn 0.5s ease-in; }
@@ -153,7 +162,7 @@
 <body class="min-h-screen pb-12 text-slate-800">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="text-center mb-6 relative">
-            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 法老密碼 v3.2.7</h1>
+            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 神殿試煉 v3.2.9</h1>
             <p class="text-lg text-amber-700 font-medium">連線版 - 古埃及數學試煉</p>
             <div id="connection-status" class="absolute top-0 right-0 text-xs font-mono text-gray-400">連線中...</div>
         </div>
@@ -249,10 +258,22 @@
                             <div class="flex flex-col h-full overflow-y-auto pr-1">
                                 <h3 class="text-xl font-bold text-amber-900 mb-4 border-b pb-2 sticky top-0 bg-white z-10">🧙 法老王試煉</h3>
                                 
-                                <div class="flex justify-center gap-2 mb-4 p-3 bg-amber-50 rounded-xl">
-                                    <div id="t-dice-8" class="w-14 h-14 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-2xl font-black shadow">-</div>
-                                    <div id="t-dice-10" class="w-14 h-14 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-2xl font-black shadow">-</div>
-                                    <div id="t-dice-12" class="w-14 h-14 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-2xl font-black shadow">-</div>
+                                <div class="mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                                    <div class="flex justify-between items-center mb-2 px-1">
+                                        <span class="text-xs font-bold text-amber-800 uppercase tracking-wider">Current Dice</span>
+                                        <div class="flex items-center gap-2" title="開啟後，語音播報完畢將自動擲骰">
+                                            <span class="text-xs font-bold text-amber-900">🤖 自動擲骰</span>
+                                            <label class="switch">
+                                                <input type="checkbox" id="auto-roll-toggle" onchange="app.toggleAutoRoll()">
+                                                <span class="slider"></span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="flex justify-center gap-2">
+                                        <div id="t-dice-8" class="w-14 h-14 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-2xl font-black shadow">-</div>
+                                        <div id="t-dice-10" class="w-14 h-14 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-2xl font-black shadow">-</div>
+                                        <div id="t-dice-12" class="w-14 h-14 bg-white border-2 border-amber-400 rounded-lg flex items-center justify-center text-2xl font-black shadow">-</div>
+                                    </div>
                                 </div>
 
                                 <div class="grid grid-cols-2 gap-3 mb-4">
@@ -428,10 +449,41 @@
             lastRoundProcessed: 0,
             lastStatus: null, // v3.2.4 新增：用於偵測狀態改變以觸發語音
             lastWinnerTime: 0, // v3.2.6 新增：用於判斷是否播放過廣播
+            autoRollEnabled: false, // v3.2.9 新增：自動擲骰開關
             isResetting: false // v3.1.2 新增：防止老師重置時自我登出
         },
 
         el: (id) => document.getElementById(id),
+
+        // v3.2.9 新增：自動擲骰控制
+        toggleAutoRoll: () => {
+            app.state.autoRollEnabled = app.el('auto-roll-toggle').checked;
+            const msg = app.state.autoRollEnabled ? '🤖 自動擲骰已開啟' : '🛑 自動擲骰已關閉';
+            app.toast(msg);
+            // 如果開啟當下正好是等待狀態，嘗試觸發
+            if (app.state.autoRollEnabled && app.state.gameData.status === 'waiting') {
+                app.triggerAutoRollQueue();
+            }
+        },
+
+        triggerAutoRollQueue: () => {
+            // 安全檢查：若未開啟、非等待狀態，則取消
+            if (!app.state.autoRollEnabled || app.state.gameData?.status !== 'waiting') return;
+
+            // 檢查是否正在講話 (例如「時間到...」)
+            if (window.speechSynthesis.speaking) {
+                // 若正在講話，每 1 秒檢查一次
+                setTimeout(app.triggerAutoRollQueue, 1000);
+            } else {
+                // 語音結束，延遲 1 秒後擲骰 (避免太快讓人反應不過來)
+                setTimeout(() => {
+                    // 再次確認狀態，避免在倒數時觸發
+                    if (app.state.autoRollEnabled && app.state.gameData?.status === 'waiting') {
+                        app.teacherRollDice();
+                    }
+                }, 1000);
+            }
+        },
 
         // --- 1. 初始化與自動登入 ---
         init: () => {
@@ -661,7 +713,13 @@
             const statusBox = statusEl.parentElement;
             
             // v3.2.4 優化：狀態改變時的同步語音與提示邏輯
+           // v3.2.4 優化：狀態改變時的同步語音與提示邏輯
             if (app.state.lastStatus !== data.status) {
+                // v3.2.9 新增：偵測轉為等待狀態時，觸發自動擲骰
+                if (data.status === 'waiting' && app.state.lastStatus !== 'waiting' && app.state.autoRollEnabled) {
+                    app.triggerAutoRollQueue();
+                }
+
                 app.state.lastStatus = data.status;
                 if (data.status === 'dead_end') {
                     const msg = "⚠️ 此局無解！4秒後重新開始...";
@@ -1134,13 +1192,13 @@
             });
 
             // 建立簡易 HTML 報表
-            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>法老密碼戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.2.6 系統自動生成</p></body></html>`;
+            const reportHTML = `<!DOCTYPE html><html lang="zh-TW"><head><meta charset="UTF-8"><title>神殿試煉戰績表 - ${classId}</title><style>body{font-family:sans-serif;padding:20px;background:#fffbeb}table{width:100%;border-collapse:collapse;margin-top:20px;background:white}th{background:#d97706;color:white;padding:12px}h1{color:#92400e}</style></head><body><h1>🏺 法老密碼戰績表</h1><p><strong>班級代碼：</strong>${classId} <span style="margin-left:20px"><strong>日期：</strong>${date}</span></p><table><thead><tr><th>排名</th><th>姓名</th><th>小組</th><th>分數</th></tr></thead><tbody>${tableRows}</tbody></table><p style="margin-top:20px;color:#666;font-size:12px">由 法老密碼 v3.2.6 系統自動生成</p></body></html>`;
 
             const blob = new Blob([reportHTML], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `法老密碼_戰績_${classId}_${new Date().getTime()}.html`;
+            a.download = `神殿試煉_戰績_${classId}_${new Date().getTime()}.html`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
