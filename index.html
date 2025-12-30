@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>神殿試煉 v3.3.0 - 時之沙版</title>
+    <title>神殿試煉 v3.3.1 - 法老王的封印</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -174,7 +174,7 @@
 <body class="min-h-screen pb-12 text-slate-800">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="text-center mb-6 relative">
-            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 神殿試煉 v3.3.0</h1>
+            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 神殿試煉 v3.3.1</h1>
             <p class="text-lg text-amber-700 font-medium">連線版 - 古埃及數學試煉</p>
             <div id="connection-status" class="absolute top-0 right-0 text-xs font-mono text-gray-400">連線中...</div>
         </div>
@@ -952,15 +952,16 @@
             // 排序組員分數
             team.members.sort((a, b) => b.score - a.score);
             
-            // v3.4.0 修改：擴充道具發放面板 (五種道具)
+            // v3.3.1 修改：擴充道具發放面板 (六種道具，加入封印)
             // 為了避免空白節點，HTML 字串採緊湊寫法
             let html = '<div class="mb-4 bg-amber-50 p-3 rounded-xl border border-amber-200"><div class="grid grid-cols-3 gap-2 mb-2">';
             html += `<button onclick="app.grantItem('${teamKey}', 'hint')" class="grant-btn"><span class="text-xl mb-1">📜</span><span class="text-[0.6rem] font-bold text-amber-900">提示卡</span></button>`;
             html += `<button onclick="app.grantItem('${teamKey}', 'double')" class="grant-btn"><span class="text-xl mb-1">🦂</span><span class="text-[0.6rem] font-bold text-amber-900">聖甲蟲</span></button>`;
             html += `<button onclick="app.grantItem('${teamKey}', 'time')" class="grant-btn bg-blue-50 border-blue-200 hover:bg-blue-100"><span class="text-xl mb-1">⏳</span><span class="text-[0.6rem] font-bold text-blue-900">時之沙</span></button>`;
-            html += '</div><div class="grid grid-cols-2 gap-2">';
-            html += `<button onclick="app.grantItem('${teamKey}', 'horus')" class="grant-btn"><span class="text-xl mb-1">👁️</span><span class="text-[0.6rem] font-bold text-amber-900">荷魯斯之眼</span></button>`;
-            html += `<button onclick="app.grantItem('${teamKey}', 'nile')" class="grant-btn"><span class="text-xl mb-1">🌊</span><span class="text-[0.6rem] font-bold text-amber-900">尼羅河恩賜</span></button>`;
+            html += '</div><div class="grid grid-cols-3 gap-2">';
+            html += `<button onclick="app.grantItem('${teamKey}', 'horus')" class="grant-btn"><span class="text-xl mb-1">👁️</span><span class="text-[0.6rem] font-bold text-amber-900">荷魯斯</span></button>`;
+            html += `<button onclick="app.grantItem('${teamKey}', 'nile')" class="grant-btn"><span class="text-xl mb-1">🌊</span><span class="text-[0.6rem] font-bold text-amber-900">尼羅河</span></button>`;
+            html += `<button onclick="app.grantItem('${teamKey}', 'seal')" class="grant-btn bg-slate-100 border-slate-300 hover:bg-slate-200"><span class="text-xl mb-1">🔒</span><span class="text-[0.6rem] font-bold text-slate-800">封印</span></button>`;
             html += '</div></div><div class="text-xs text-gray-500 mb-2 font-bold">組員列表：</div>';
 
             team.members.forEach(m => {
@@ -971,6 +972,7 @@
                     if (m.items.horus) itemsBadge += '👁️';
                     if (m.items.nile) itemsBadge += '🌊';
                     if (m.items.time) itemsBadge += '⏳';
+                    if (m.items.seal) itemsBadge += '🔒';
                 }
                 html += `<div class="team-detail-row items-center"><span class="font-bold text-gray-700">${m.name} <span class="text-xs">${itemsBadge}</span></span><span class="font-bold text-amber-600">${m.score}分</span></div>`;
             });
@@ -1002,7 +1004,7 @@
 
                  // 計算該玩家目前擁有的道具總數
                  const items = member.items || {};
-                 const totalItems = (items.hint||0) + (items.double||0) + (items.horus||0) + (items.nile||0);
+                 const totalItems = (items.hint||0) + (items.double||0) + (items.horus||0) + (items.nile||0) + (items.seal||0);
 
                  // 條件 B: 尚未獲得過道具 (道具總數為 0 者權重 +80)
                  if (totalItems === 0) {
@@ -1010,9 +1012,8 @@
                  }
 
                  // 條件 C: 道具取得次數越少，機率越高 (每多一個道具，權重稍微扣減，但最低保留 5)
-                 // 例如：0道具(+0扣減), 1道具(-10), 2道具(-20)...
                  weight -= (totalItems * 10);
-                 if (weight < 5) weight = 5; // 保底權重，避免變成 0 機率
+                 if (weight < 5) weight = 5; 
 
                  return { member: member, weight: weight };
              });
@@ -1032,7 +1033,7 @@
              
              console.log(`道具發送：${luckyMember.name} (權重: ${candidates.find(c=>c.member===luckyMember).weight}/${totalWeight})`);
 
-             // --- 執行發送 (與原程式碼相同) ---
+             // --- 執行發送 ---
              const itemRef = db.ref(`classes/${app.state.classId}/players/${teamKey}/${luckyMember.name}/items/${type}`);
              itemRef.transaction((currentCount) => {
                  return (currentCount || 0) + 1;
@@ -1043,12 +1044,11 @@
                          double: '🦂 聖甲蟲祝福',
                          horus: '👁️ 荷魯斯之眼',
                          nile: '🌊 尼羅河恩賜',
-                         time: '⏳ 時之沙'
+                         time: '⏳ 時之沙',
+                         seal: '🔒 法老王的封印'
                      };
                      const itemName = itemNames[type] || '🎁 神秘道具';
                      app.toast(`🎁 已賜予 ${luckyMember.name}：${itemName}`);
-                     // 這裡選擇不關閉視窗，讓老師可以連續發送
-                     // app.el('team-modal').classList.add('hidden'); 
                  }
              });
         },
@@ -1066,34 +1066,40 @@
             const board = app.el('pyramid-board');
             if (!pyramidData) return;
             
-            // --- 1. 檢查凍結狀態 ---
             const now = Date.now();
+
+            // --- 1. 檢查凍結狀態 (時之沙) & 封印狀態 ---
+            // 檢查是否有任何卡片處於鎖定倒數狀態
+            let hasActiveLocks = false;
+            pyramidData.forEach(c => {
+                if(c && c.lockedUntil && c.lockedUntil > now) hasActiveLocks = true;
+            });
+
             const frozenState = app.state.gameData.frozenState;
-            let isFrozen = false;
-            let remainingSeconds = 0;
-            let showGray = false;
+            let isTimeFrozen = false;
+            let frozenRemaining = 0;
+            let showFrozenGray = false;
 
             if (frozenState && frozenState.endTime > now) {
-                isFrozen = true;
-                remainingSeconds = Math.ceil((frozenState.endTime - now) / 1000);
-                
-                // 判斷是否需要變灰 (老師看其他人灰，被凍結的學生看自己灰)
+                isTimeFrozen = true;
+                frozenRemaining = Math.ceil((frozenState.endTime - now) / 1000);
                 if (app.state.role === 'teacher') {
-                    showGray = true; // 老師總是有視覺效果提醒
+                    showFrozenGray = true; 
                 } else if (app.state.role === 'student') {
-                    // 如果不是發動時之沙的隊伍，就變灰
                     if (frozenState.byTeam !== app.state.myTeam) {
-                        showGray = true;
+                        showFrozenGray = true;
                     }
                 }
             }
 
-            // 為了讓倒數計時器動起來，我們需要一個計時器 (如果還沒啟動)
-            if (isFrozen && !app.state.freezeTimerInterval) {
+            // 啟動或關閉本地計時器 (若有時之沙 OR 有卡片鎖定中，都需要每秒刷新)
+            const needsTimer = isTimeFrozen || hasActiveLocks;
+
+            if (needsTimer && !app.state.freezeTimerInterval) {
                 app.state.freezeTimerInterval = setInterval(() => {
-                    app.renderPyramid(app.state.gameData.pyramid); // 簡單暴力的重繪以更新秒數
+                    app.renderPyramid(app.state.gameData.pyramid); 
                 }, 1000);
-            } else if (!isFrozen && app.state.freezeTimerInterval) {
+            } else if (!needsTimer && app.state.freezeTimerInterval) {
                 clearInterval(app.state.freezeTimerInterval);
                 app.state.freezeTimerInterval = null;
             }
@@ -1103,13 +1109,11 @@
             const rows = [[0], [1,2], [3,4,5], [6,7,8,9]];
             let html = '';
             
-            // 如果凍結中，加入覆蓋層 (innerHTML 無空白寫法)
-            if (showGray) {
-                html += `<div class="frozen-timer-overlay"><div class="frozen-icon">❄️</div><div>${remainingSeconds}s</div></div>`;
+            if (showFrozenGray) {
+                html += `<div class="frozen-timer-overlay"><div class="frozen-icon">❄️</div><div>${frozenRemaining}s</div></div>`;
             }
 
-            // 容器開始 (若變灰，加入 CSS class)
-            html += `<div class="${showGray ? 'frozen-mode' : ''} transition-all duration-500">`;
+            html += `<div class="${showFrozenGray ? 'frozen-mode' : ''} transition-all duration-500">`;
 
             rows.forEach(rowIndices => {
                 html += '<div class="flex justify-center mb-3 gap-2">'; 
@@ -1121,14 +1125,35 @@
                         const colorClass = app.getCardColorClass(card.color);
                         const visibilityClass = card.isTaken ? 'opacity-0 pointer-events-none' : 'opacity-100';
                         
-                        html += `<div onclick="app.studentSelectCard(${idx})" class="${cardSizeClass} rounded-xl shadow-lg cursor-pointer transition-all duration-200 ${colorClass} ${ringClass} ${visibilityClass} flex items-center justify-center font-black relative border-2 border-white/20"><div class="absolute top-1 right-2 text-sm opacity-60 font-bold">${card.points}</div><span class="pyramid-num-lg drop-shadow-md">${card.number}</span></div>`;
+                        // v3.3.2 更新：卡牌鎖定狀態與倒數顯示
+                        let lockHtml = '';
+                        if (card.lockedUntil && card.lockedUntil > now) {
+                            const remaining = Math.ceil((card.lockedUntil - now) / 1000);
+                            const isMyLock = card.lockedBy === app.state.myTeam;
+                            
+                            if (isMyLock) {
+                                // 自己的鎖：顯示綠色鎖頭，上方顯示紅底白字倒數
+                                lockHtml = `<div class="absolute -top-6 -left-2 w-full text-left z-30"><span class="bg-red-500 text-white text-xs font-black px-1.5 py-0.5 rounded-full shadow-md animate-pulse">${remaining}s</span></div>
+                                            <div class="absolute -top-2 -left-2 text-2xl z-20 drop-shadow-md">🔒</div>
+                                            <div class="absolute bottom-0 w-full text-[0.6rem] bg-green-600 text-white text-center py-0.5 rounded-b-md">已鎖定</div>`;
+                            } else {
+                                // 別人的鎖：全遮罩，中間顯示黃色大字倒數
+                                lockHtml = `<div class="absolute inset-0 bg-slate-800/80 rounded-xl z-20 flex flex-col items-center justify-center text-white backdrop-blur-[2px]">
+                                                <div class="text-xl font-black text-amber-400 mb-1">${remaining}s</div>
+                                                <div class="text-3xl">🔒</div>
+                                                <div class="text-xs font-bold mt-1">封印中</div>
+                                            </div>`;
+                            }
+                        }
+
+                        html += `<div onclick="app.studentSelectCard(${idx})" class="${cardSizeClass} rounded-xl shadow-lg cursor-pointer transition-all duration-200 ${colorClass} ${ringClass} ${visibilityClass} flex items-center justify-center font-black relative border-2 border-white/20">${lockHtml}<div class="absolute top-1 right-2 text-sm opacity-60 font-bold">${card.points}</div><span class="pyramid-num-lg drop-shadow-md">${card.number}</span></div>`;
                     } else {
                         html += `<div class="${cardSizeClass} rounded-xl border-4 border-dashed border-amber-300/50 bg-white/20"></div>`;
                     }
                 });
                 html += '</div>';
             });
-            html += '</div>'; // 容器結束
+            html += '</div>'; 
 
             board.innerHTML = html;
             
@@ -1143,10 +1168,51 @@
             if (app.state.role !== 'student') return;
             if (app.state.gameData.status !== 'playing') return app.toast('✋ 現在還不能選卡片喔');
             
+            const card = app.state.gameData.pyramid[index];
+            if (!card || card.isTaken) return;
+
+            // v3.3.1 封印道具邏輯：如果正在使用封印道具
+            if (app.state.activeItem === 'seal') {
+                if (card.lockedUntil && card.lockedUntil > Date.now()) {
+                    return app.toast('⚠️這張牌已經被鎖定了！');
+                }
+                
+                if (!confirm(`🔒 確定要消耗一張「法老封印」鎖定數字 ${card.number} 嗎？\n(鎖定時間 60 秒)`)) return;
+
+                // 執行扣除道具並寫入鎖定狀態
+                const itemRef = db.ref(`classes/${app.state.classId}/players/${app.state.myTeam}/${app.state.myName}/items/seal`);
+                itemRef.transaction(count => {
+                    if ((count || 0) > 0) {
+                        // 寫入鎖定資訊
+                        db.ref(`classes/${app.state.classId}/pyramid/${index}`).update({
+                            lockedBy: app.state.myTeam,
+                            lockedUntil: Date.now() + 60000 // 鎖定 60 秒
+                        });
+                        app.speak('封印術式已發動');
+                        app.state.activeItem = null; // 用完關閉
+                        app.renderActiveItemStatus();
+                        app.renderStudentInventory(app.state.gameData.players);
+                        return count - 1;
+                    } else {
+                        app.toast('❌ 道具數量不足！');
+                        return count; 
+                    }
+                });
+                return; // 結束函式，不執行選取
+            }
+
             // v3.4.0: 時之沙阻擋檢查
             const frozen = app.state.gameData.frozenState;
             if (frozen && frozen.endTime > Date.now() && frozen.byTeam !== app.state.myTeam) {
                 return app.toast(`❄️ 時間已被 ${app.getTeamShortName(frozen.byTeam)} 凍結！無法動作！`);
+            }
+            
+            // v3.3.1: 檢查卡牌是否被別人鎖定
+            if (card.lockedUntil && card.lockedUntil > Date.now()) {
+                if (card.lockedBy !== app.state.myTeam) {
+                    app.speak("此牌已被封印");
+                    return app.toast(`🔒 此牌已被其他隊伍封印！`);
+                }
             }
 
             app.state.selectedCardIndex = index;
@@ -1731,7 +1797,7 @@
             const invEl = app.el('student-inventory');
             const listEl = app.el('inventory-list');
             
-            const hasItems = (items.hint > 0) || (items.double > 0) || (items.horus > 0) || (items.nile > 0) || (items.time > 0);
+            const hasItems = (items.hint > 0) || (items.double > 0) || (items.horus > 0) || (items.nile > 0) || (items.time > 0) || (items.seal > 0);
             if (!hasItems) {
                 invEl.classList.add('hidden');
                 return;
@@ -1744,11 +1810,10 @@
                 html += `<div onclick="app.useItem('hint')" class="item-slot" title="提示卡"><div class="item-icon">📜</div><div class="item-count">${items.hint}</div></div>`;
             }
             if (items.time > 0) {
-                // 時之沙使用藍色系強調
                 html += `<div onclick="app.useItem('time')" class="item-slot" title="時之沙：凍結其他隊伍30秒"><div class="item-icon filter drop-shadow-md">⏳</div><div class="item-count bg-blue-600">${items.time}</div></div>`;
             }
             
-            // 2. 狀態切換型道具
+            // 2. 狀態切換型道具 (包含新道具：封印)
             const renderToggleItem = (type, icon, title) => {
                 if (items[type] > 0) {
                     const isActive = app.state.activeItem === type;
@@ -1758,6 +1823,7 @@
                 return '';
             };
 
+            html += renderToggleItem('seal', '🔒', '法老封印：鎖定一張卡牌1分鐘');
             html += renderToggleItem('double', '🦂', '聖甲蟲：下題分數加倍');
             html += renderToggleItem('horus', '👁️', '荷魯斯之眼：將一顆骰子視為 1~3');
             html += renderToggleItem('nile', '🌊', '尼羅河恩賜：只需兩顆骰子');
@@ -1789,56 +1855,48 @@
                 return;
             }
             
-            // 2. 時之沙 (v3.4.0 新增)
+            // 2. 時之沙
             if (type === 'time') {
-                // 檢查是否已經有人使用了時之沙
                 const currentFrozen = app.state.gameData.frozenState;
                 const now = Date.now();
                 if (currentFrozen && currentFrozen.endTime > now) {
                     return app.toast('❄️ 場上時間已被凍結，無法疊加使用！');
                 }
-
                 if (!confirm('⏳ 確定要使用「時之沙」嗎？\n\n接下來 30 秒內，只有你們小組可以答題，其他隊伍將被凍結！')) return;
 
-                // 寫入 Firebase
-                const endTime = firebase.database.ServerValue.TIMESTAMP; // 預留位置，實際上我們會用 offset 計算，但簡單起見，直接在寫入後推算 UI
-                // 更精確的做法是寫入當前伺服器時間 + 30000ms
-                // 這裡我們直接寫入本地時間 + 補正，或者依賴 Firebase 伺服器時間
-                
-                // 消耗道具
                 const refItem = db.ref(`classes/${app.state.classId}/players/${app.state.myTeam}/${app.state.myName}/items/time`);
                 refItem.transaction(count => {
                     if ((count || 0) > 0) {
-                        // 寫入全域凍結狀態 (持續 30 秒)
                         db.ref(`classes/${app.state.classId}/frozenState`).set({
                             active: true,
                             byTeam: app.state.myTeam,
                             byPlayer: app.state.myName,
                             endTime: Date.now() + 30000 
                         });
-                        
-                        // 播放語音
                         app.speak(`警告！${app.state.myName}使用了時之沙，時間凍結30秒！`);
                         return count - 1;
                     }
-                    return count; // 數量不足不扣
+                    return count;
                 });
                 return;
             }
 
-            // --- 類型 B: 狀態切換型 ---
+            // --- 類型 B: 狀態切換型 (封印/聖甲蟲/荷魯斯/尼羅河) ---
             if (app.state.activeItem === type) {
                 app.state.activeItem = null; // 取消
                 app.toast('已取消道具效果');
             } else {
                 app.state.activeItem = type; // 啟動
+                if (type === 'seal') {
+                     app.toast('🔒 封印模式已啟動，請點擊金字塔上的卡牌進行封鎖！');
+                     app.speak('法老封印已啟動，請選擇目標');
+                }
             }
             
             // 重新渲染
             app.renderStudentInventory(app.state.gameData.players);
         },
 
-        // v3.3.1 新增：顯示道具狀態框
         renderActiveItemStatus: () => {
              const statusEl = app.el('active-item-status');
              const type = app.state.activeItem;
@@ -1849,6 +1907,7 @@
              }
              
              const configs = {
+                 seal: { icon: '🔒', name: '法老封印', desc: '點擊金字塔上的牌以鎖定60秒 (再次點擊取消)' },
                  double: { icon: '🦂', name: '聖甲蟲祝福', desc: '本題分數 x2 (再次點擊可關閉)' },
                  horus: { icon: '👁️', name: '荷魯斯之眼', desc: '可使用下方 1, 2, 3 按鈕 (再次點擊可關閉)' },
                  nile: { icon: '🌊', name: '尼羅河恩賜', desc: '本回合只需 2 顆骰子 (再次點擊可關閉)' }
