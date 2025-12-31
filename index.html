@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>神殿試煉 v3.3.3 - 小組戰況版</title>
+    <title>神殿試煉 v3.3.4 - 自動道具版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
@@ -174,7 +174,7 @@
 <body class="min-h-screen pb-12 text-slate-800">
     <div class="container mx-auto px-4 py-8 max-w-7xl">
         <div class="text-center mb-6 relative">
-            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 神殿試煉 v3.3.3 (小組戰況版)</h1>
+            <h1 class="text-3xl md:text-5xl font-black text-amber-800 mb-2 drop-shadow-sm tracking-wide">🏺 神殿試煉 v3.3.4 (自動道具版)</h1>
             <p class="text-lg text-amber-700 font-medium">連線版 - 古埃及數學試煉</p>
             <div id="connection-status" class="absolute top-0 right-0 text-xs font-mono text-gray-400">連線中...</div>
         </div>
@@ -292,6 +292,7 @@
                                     <button id="btn-roll" onclick="app.teacherRollDice()" class="col-span-2 bg-gradient-to-r from-amber-600 to-amber-700 text-white py-3 rounded-xl font-bold text-lg shadow hover:scale-105 transition-transform">🎲 擲骰子</button>
                                     <button onclick="app.teacherGetHint()" class="bg-indigo-600 text-white py-2 rounded-xl font-bold shadow hover:bg-indigo-700 text-sm">🔮 提示</button>
                                     <button onclick="app.forceNextRound()" class="bg-slate-600 text-white py-2 rounded-xl font-bold shadow hover:bg-slate-700 text-sm">下一局</button>
+                                    <button onclick="app.openAutoGrantModal()" class="col-span-2 bg-teal-600 text-white py-2 rounded-xl font-bold shadow hover:bg-teal-700 text-sm flex items-center justify-center gap-1">⚙️ 自動道具配置 <span id="ag-status-indicator" class="w-2 h-2 rounded-full bg-red-400"></span></button>
                                     <button onclick="app.triggerEndGame()" class="col-span-2 bg-red-700 text-white py-2 rounded-xl font-bold shadow hover:bg-red-800 text-sm">🏁 冒險結束</button>
                                 </div>
 
@@ -395,7 +396,53 @@
                 </div>
              </div>
         </div>
+<div id="auto-grant-modal" class="fixed inset-0 z-[60] hidden flex items-center justify-center modal-backdrop">
+             <div class="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border-4 border-amber-600 animate-[fadeIn_0.3s_ease-out]">
+                <div class="flex justify-between items-center mb-4 border-b pb-2">
+                    <h3 class="text-xl font-black text-amber-900">⚙️ 自動道具排程</h3>
+                    <button onclick="app.el('auto-grant-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 font-bold text-xl">✕</button>
+                </div>
+                
+                <div class="space-y-4 mb-6">
+                    <div class="flex justify-between items-center bg-amber-50 p-3 rounded-xl border border-amber-200">
+                        <span class="font-bold text-amber-900">啟用自動發放</span>
+                        <label class="switch">
+                            <input type="checkbox" id="ag-enable">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
 
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">每隔幾回合?</label>
+                            <input type="number" id="ag-interval" value="3" min="1" class="w-full border-2 border-amber-300 rounded-lg p-2 text-center font-bold text-amber-900">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">給倒數幾組?</label>
+                            <input type="number" id="ag-target-count" value="2" min="1" max="5" class="w-full border-2 border-amber-300 rounded-lg p-2 text-center font-bold text-amber-900">
+                        </div>
+                         <div class="col-span-2">
+                            <label class="block text-xs font-bold text-gray-500 mb-1">每組給幾個?</label>
+                            <input type="number" id="ag-item-count" value="1" min="1" max="3" class="w-full border-2 border-amber-300 rounded-lg p-2 text-center font-bold text-amber-900">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-2">允許發放的道具 (隨機抽取)</label>
+                        <div class="grid grid-cols-3 gap-2 text-sm">
+                            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="ag-item-check" value="hint" checked> 📜 提示</label>
+                            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="ag-item-check" value="double" checked> 🦂 聖甲蟲</label>
+                            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="ag-item-check" value="nile" checked> 🌊 尼羅河</label>
+                            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="ag-item-check" value="horus"> 👁️ 荷魯斯</label>
+                            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="ag-item-check" value="time"> ⏳ 時之沙</label>
+                            <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="ag-item-check" value="seal"> 🔒 封印</label>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="app.saveAutoGrantSettings()" class="w-full bg-green-600 text-white rounded-xl font-bold py-3 shadow-lg hover:bg-green-700 active:scale-95 transition-all">✅ 儲存並套用</button>
+             </div>
+        </div>
         <div id="team-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-backdrop" onclick="if(event.target === this) this.classList.add('hidden')">
              <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl border-4 border-amber-600 animate-[fadeIn_0.3s_ease-out]">
                 <div class="flex justify-between items-center mb-4 border-b pb-2">
@@ -473,7 +520,15 @@
             lastStatus: null, // v3.2.4 新增：用於偵測狀態改變以觸發語音
             lastWinnerTime: 0, // v3.2.6 新增：用於判斷是否播放過廣播
             autoRollEnabled: false, // v3.2.9 新增：自動擲骰開關
-            isResetting: false // v3.1.2 新增：防止老師重置時自我登出
+            isResetting: false, // v3.1.2 新增：防止老師重置時自我登出
+            // v3.5.0 自動發放設定
+            autoGrant: {
+                enabled: false,
+                interval: 3,     // 幾回合一次
+                targetCount: 2,  // 給倒數幾名
+                itemCount: 1,    // 給幾個
+                allowedTypes: ['hint', 'double', 'nile'] // 預設允許清單
+            }
         },
 
         el: (id) => document.getElementById(id),
@@ -1476,14 +1531,21 @@
                  app.triggerEndGame();
                  app.toast('🏁 牌庫耗盡，冒險結束！');
              } else {
+                 const nextRound = (gameData.round || 1) + 1;
                  db.ref(`classes/${app.state.classId}`).update({
                      status: 'waiting',
                      dice: {d8:'-', d10:'-', d12:'-'},
                      timerActive: false,
                      pyramid: newPyramid,
                      decks: newDecks,
-                     round: (gameData.round || 1) + 1
+                     round: nextRound
                  });
+                 
+                 // v3.5.0: 觸發自動發放檢查
+                 if(app.state.role === 'teacher') {
+                     app.processAutoGrant(nextRound);
+                 }
+
                  app.toast(hasRefilled ? '已進入下一回合並補牌' : '已進入下一回合');
              }
         },
@@ -2014,6 +2076,101 @@
             pyramid[6] = decks.yellow.pop(); pyramid[7] = decks.yellow.pop(); pyramid[8] = decks.yellow.pop(); pyramid[9] = decks.yellow.pop();
             
             return { pyramid, decks };
+        },
+
+        // --- v3.5.0 自動道具發放系統 ---
+        openAutoGrantModal: () => {
+            const cfg = app.state.autoGrant;
+            app.el('ag-enable').checked = cfg.enabled;
+            app.el('ag-interval').value = cfg.interval;
+            app.el('ag-target-count').value = cfg.targetCount;
+            app.el('ag-item-count').value = cfg.itemCount;
+            
+            // 設定 Checkbox
+            document.querySelectorAll('.ag-item-check').forEach(chk => {
+                chk.checked = cfg.allowedTypes.includes(chk.value);
+            });
+            
+            app.el('auto-grant-modal').classList.remove('hidden');
+        },
+
+        saveAutoGrantSettings: () => {
+            const enabled = app.el('ag-enable').checked;
+            const interval = parseInt(app.el('ag-interval').value) || 3;
+            const targetCount = parseInt(app.el('ag-target-count').value) || 2;
+            const itemCount = parseInt(app.el('ag-item-count').value) || 1;
+            
+            const allowedTypes = [];
+            document.querySelectorAll('.ag-item-check:checked').forEach(chk => {
+                allowedTypes.push(chk.value);
+            });
+
+            if (enabled && allowedTypes.length === 0) {
+                return app.toast('⚠️ 開啟自動發放時，至少要選擇一種道具！');
+            }
+
+            app.state.autoGrant = { enabled, interval, targetCount, itemCount, allowedTypes };
+            
+            // 更新按鈕上的狀態燈
+            const indicator = app.el('ag-status-indicator');
+            if (indicator) {
+                indicator.className = `w-2 h-2 rounded-full ${enabled ? 'bg-green-400 shadow-[0_0_5px_#4ade80]' : 'bg-red-400'}`;
+            }
+
+            app.el('auto-grant-modal').classList.add('hidden');
+            app.toast(enabled ? `✅ 自動平衡機制已啟動 (每${interval}局)` : '🛑 自動平衡機制已關閉');
+        },
+
+        processAutoGrant: (round) => {
+            const cfg = app.state.autoGrant;
+            // 檢查開關與回合數 (排除第1回合)
+            if (!cfg.enabled || round <= 1 || (round - 1) % cfg.interval !== 0) return;
+
+            // 開始計算分數與排名
+            const players = app.state.gameData.players || {};
+            const teamScores = [];
+            
+            for(let i=1; i<=6; i++) {
+                const key = `team${i}`;
+                let score = 0;
+                let memberCount = 0;
+                if(players[key]) {
+                    Object.values(players[key]).forEach(p => {
+                        score += (p.score || 0);
+                        memberCount++;
+                    });
+                }
+                // 只將有成員的隊伍納入考量
+                if (memberCount > 0) {
+                    teamScores.push({ key: key, score: score, name: app.getTeamShortName(key) });
+                }
+            }
+
+            // 分數由低到高排序
+            teamScores.sort((a, b) => a.score - b.score);
+
+            // 取出倒數 N 名
+            const targets = teamScores.slice(0, cfg.targetCount);
+            
+            if (targets.length === 0) return;
+
+            // 延遲執行，讓回合切換的 toast 先跑完
+            setTimeout(() => {
+                let msg = `🎁 平衡機制觸發 (第${round}回合)：\n`;
+                
+                targets.forEach(team => {
+                    msg += `${team.name} 獲得 ${cfg.itemCount} 個道具\n`;
+                    // 執行發放
+                    for(let i=0; i<cfg.itemCount; i++) {
+                        // 隨機選一個道具種類
+                        const randomType = cfg.allowedTypes[Math.floor(Math.random() * cfg.allowedTypes.length)];
+                        app.grantItem(team.key, randomType);
+                    }
+                });
+                
+                app.toast(msg);
+                app.speak("戰場物資已投放，請確認背包");
+            }, 1500);
         }
     };
 
